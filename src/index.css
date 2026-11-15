@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* O tema escuro é ativado pela classe "dark" em <html> (ver lib/theme.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-slate-200);
+  }
+
+  .dark *,
+  .dark ::after,
+  .dark ::before {
+    border-color: var(--color-slate-700);
+  }
+}

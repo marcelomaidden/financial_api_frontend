@@ -1,4 +1,10 @@
-## ADDED Requirements
+# combined-loans Specification
+
+## Purpose
+
+Listar empréstimos e financiamentos de todos os donos em uma só tela, com saldo para quitar, parcelas e último pagamento.
+
+## Requirements
 
 ### Requirement: Empréstimos de todos os donos
 O sistema SHALL oferecer uma tela de empréstimos que lista os empréstimos e financiamentos de todos os donos juntos, com o dono identificado em cada item, e SHALL ter um link para ela na navegação principal.

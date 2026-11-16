@@ -4,7 +4,7 @@ import { fetchAccounts, fetchBills, fetchCreditCards } from '../api/endpoints'
 import type { CreditCard } from '../api/types'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
-import { OwnerBadge } from '../components/OwnerBadge'
+import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
 import { formatDate, formatMoney } from '../lib/format'
 
@@ -68,7 +68,7 @@ function CreditCardItem({ owner, card }: { owner: string; card: CreditCard }) {
     <li className="rounded border bg-white dark:bg-slate-800 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2">
-          <OwnerBadge owner={owner} />
+          <OwnerAvatar owner={owner} showName />
           <span className="font-medium">{card.name}</span>
           {card.number && <span className="text-slate-500 dark:text-slate-400">final {card.number}</span>}
         </span>
@@ -133,7 +133,7 @@ export function AccountsPage() {
           {accounts.map(({ owner, account }) => (
             <li key={`${owner}:${account.id}`} className="flex items-center justify-between rounded border bg-white dark:bg-slate-800 p-3">
               <span className="flex items-center gap-2">
-                <OwnerBadge owner={owner} />
+                <OwnerAvatar owner={owner} showName />
                 <span className="font-medium">{account.name}</span>
                 {account.number && <span className="text-slate-500 dark:text-slate-400">{account.number}</span>}
               </span>

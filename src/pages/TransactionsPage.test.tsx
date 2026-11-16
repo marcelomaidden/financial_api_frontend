@@ -92,7 +92,7 @@ describe('TransactionsPage', () => {
       'Antiga',
     ])
     expect(within(rows[0]).getByText('Nubank')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('luana')).toBeInTheDocument()
+    expect(within(rows[1]).getByRole('img', { name: 'luana' })).toBeInTheDocument()
     expect(within(rows[1]).getByText('Inter')).toBeInTheDocument()
     expect(within(rows[2]).getByText('Cartão Roxo')).toBeInTheDocument()
     expect(creditCardsCalls).toBe(0)

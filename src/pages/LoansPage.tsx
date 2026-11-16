@@ -3,7 +3,7 @@ import { fetchLoans } from '../api/endpoints'
 import type { Loan } from '../api/types'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
-import { OwnerBadge } from '../components/OwnerBadge'
+import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
 import { formatDate, formatMoney } from '../lib/format'
 
@@ -51,7 +51,7 @@ function LoanItem({ owner, loan }: { owner: string; loan: Loan }) {
   return (
     <li className="rounded border bg-white p-3 dark:bg-slate-800">
       <div className="flex flex-wrap items-center gap-2">
-        <OwnerBadge owner={owner} />
+        <OwnerAvatar owner={owner} showName />
         <span className="font-medium">{loan.productName}</span>
         <span className="text-sm text-slate-500 dark:text-slate-400">{kindLabel(loan.kind)}</span>
       </div>

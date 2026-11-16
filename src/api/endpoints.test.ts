@@ -7,7 +7,7 @@ import {
   fetchCreditCards,
   fetchLoans,
   fetchSummary,
-  fetchTransactionsPage,
+  fetchTransactions,
 } from './endpoints'
 import { accountsFixture, creditCardsFixture, loansFixture, summaryFixture } from './fixtures'
 
@@ -101,31 +101,32 @@ describe('parâmetros das consultas', () => {
     expect(urls[1].search).toBe('')
   })
 
-  it('envia datas e after nas transações, no caminho do dono e da conta', async () => {
+  it('envia owner, accountId e datas em /transactions', async () => {
     let url!: URL
     server.use(
-      http.get(`${origin}/api/owners/:owner/accounts/:accountId/transactions`, ({ request }) => {
+      http.get(`${origin}/api/transactions`, ({ request }) => {
         url = new URL(request.url)
-        return HttpResponse.json({ owner: 'marcelo', accountId: 'a 1', transactions: [], nextCursor: null })
+        return HttpResponse.json({ transactions: [], partial: false, errors: [] })
       }),
     )
-    await fetchTransactionsPage('marcelo', 'a 1', { dateFrom: '2026-11-01', dateTo: '2026-11-30' }, 'cur123')
-    expect(url.pathname).toBe('/api/owners/marcelo/accounts/a%201/transactions')
+    await fetchTransactions({ owner: 'marcelo', accountId: 'a 1', dateFrom: '2026-11-01', dateTo: '2026-11-30' })
+    expect(url.pathname).toBe('/api/transactions')
+    expect(url.searchParams.get('owner')).toBe('marcelo')
+    expect(url.searchParams.get('accountId')).toBe('a 1')
     expect(url.searchParams.get('dateFrom')).toBe('2026-11-01')
     expect(url.searchParams.get('dateTo')).toBe('2026-11-30')
-    expect(url.searchParams.get('after')).toBe('cur123')
   })
 
-  it('não envia after na primeira página', async () => {
+  it('não envia parâmetros omitidos em /transactions', async () => {
     let url!: URL
     server.use(
-      http.get(`${origin}/api/owners/:owner/accounts/:accountId/transactions`, ({ request }) => {
+      http.get(`${origin}/api/transactions`, ({ request }) => {
         url = new URL(request.url)
-        return HttpResponse.json({ owner: 'm', accountId: 'a', transactions: [], nextCursor: null })
+        return HttpResponse.json({ transactions: [], partial: false, errors: [] })
       }),
     )
-    await fetchTransactionsPage('m', 'a', {}, null)
-    expect(url.searchParams.has('after')).toBe(false)
+    await fetchTransactions()
+    expect(url.search).toBe('')
   })
 
   it('envia page e pageSize nas faturas', async () => {

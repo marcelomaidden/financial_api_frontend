@@ -6,7 +6,7 @@ import type {
   OwnerLoans,
   OwnersResponse,
   SummaryResponse,
-  TransactionsResponse,
+  ConsolidatedTransactionsResponse,
 } from './types'
 
 export interface DateRange {
@@ -38,16 +38,13 @@ export function fetchBills(owner: string, accountId: string, page?: number, page
   )
 }
 
-export function fetchTransactionsPage(
-  owner: string,
-  accountId: string,
-  range: DateRange,
-  after?: string | null,
-  signal?: AbortSignal,
-) {
-  return getJson<TransactionsResponse>(
-    `/owners/${encodeURIComponent(owner)}/accounts/${encodeURIComponent(accountId)}/transactions`,
-    { ...range, after },
-    signal,
-  )
+export interface TransactionsFilter extends DateRange {
+  owner?: string
+  /** Exige `owner`. */
+  accountId?: string
+}
+
+/** Todas as transações em uma chamada. Sem datas, a API usa o mês corrente. */
+export function fetchTransactions(filter: TransactionsFilter = {}, signal?: AbortSignal) {
+  return getJson<ConsolidatedTransactionsResponse>('/transactions', { ...filter }, signal)
 }

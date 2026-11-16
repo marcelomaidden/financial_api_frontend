@@ -5,7 +5,7 @@ para leitura e mostra a situação financeira de todos os donos de forma combina
 
 ## Requisitos
 
-- Node.js 20 ou superior e npm.
+- Node.js 22.22 ou superior (o CI usa 24) e npm.
 - `financial_api` rodando (padrão `http://localhost:8080`). Veja o README dela.
 
 ## Variáveis de ambiente
@@ -34,6 +34,16 @@ só fala com a própria origem.
 
 Em produção não há esse proxy. Sirva `dist/` e a API sob o mesmo domínio (por exemplo,
 um nginx que encaminha `/api` para a API) ou habilite CORS na `financial_api`.
+
+## Integração contínua
+
+O workflow `.github/workflows/ci.yml` roda em todo pull request (aberto ou atualizado) e em
+todo push na `master`: `npm ci`, `npm run lint`, `npm test` e `npm run build`. Um passo que
+falha interrompe os seguintes e deixa o check `ci` vermelho. O build inclui `tsc -b`, que
+checa tipos.
+
+O workflow sozinho não bloqueia o merge. Para bloquear, marque o check `ci` como obrigatório
+em Settings, Branches, na regra de proteção da `master`.
 
 ## Telas
 

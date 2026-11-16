@@ -3,6 +3,8 @@
 SPA em React + TypeScript (Vite) que consome a [`financial_api`](../financial_api) somente
 para leitura e mostra a situação financeira de todos os donos de forma combinada.
 
+![Tela de visão geral](./screenshot.png)
+
 ## Requisitos
 
 - Node.js 22.22 ou superior (o CI usa 24) e npm.

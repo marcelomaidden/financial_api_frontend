@@ -10,7 +10,7 @@ import type {
 } from '../api/types'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
-import { OwnerBadge } from '../components/OwnerBadge'
+import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
 import { formatDate, formatMoney } from '../lib/format'
 
@@ -44,7 +44,7 @@ function SummaryCard<T>({
             {rows.map(({ owner, item }, index) => (
               <li key={index} className="flex items-center justify-between gap-2 py-1">
                 <span className="flex items-center gap-2">
-                  <OwnerBadge owner={owner} />
+                  <OwnerAvatar owner={owner} />
                   {renderItem(item)}
                 </span>
               </li>

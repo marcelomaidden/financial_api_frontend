@@ -58,7 +58,7 @@ describe('OverviewPage', () => {
     renderWithProviders(<OverviewPage />)
     const owed = await screen.findByRole('region', { name: 'Faturas a pagar' })
 
-    expect(within(owed).getByText('marcelo')).toBeInTheDocument()
+    expect(within(owed).getByRole('img', { name: 'marcelo' })).toBeInTheDocument()
     expect(within(owed).getByText(/Cartão Nubank · vence em 20\/11\/2026 · .*250,40/)).toBeInTheDocument()
   })
 

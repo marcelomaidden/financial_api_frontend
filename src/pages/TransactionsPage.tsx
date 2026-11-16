@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { fetchCombinedTransactions } from '../api/transactions'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
-import { OwnerBadge } from '../components/OwnerBadge'
+import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
 import { formatDate, formatMoney } from '../lib/format'
 
@@ -113,7 +113,7 @@ export function TransactionsPage() {
                             {income ? '↓' : '↑'}
                           </span>
                           <span className="min-w-0 flex-1 truncate">{transaction.description}</span>
-                          <OwnerBadge owner={owner} />
+                          <OwnerAvatar owner={owner} />
                           <span className="text-slate-500 dark:text-slate-400">{accountName}</span>
                           <span
                             className={`w-32 text-right font-medium ${

@@ -3,6 +3,7 @@ import type {
   BillsResponse,
   OwnerAccounts,
   OwnerCreditCards,
+  OwnerLoans,
   OwnersResponse,
   SummaryResponse,
   TransactionsResponse,
@@ -23,6 +24,10 @@ export function fetchAccounts(signal?: AbortSignal) {
 
 export function fetchCreditCards(signal?: AbortSignal) {
   return getJson<OwnersResponse<OwnerCreditCards>>('/credit-cards', undefined, signal)
+}
+
+export function fetchLoans(signal?: AbortSignal) {
+  return getJson<OwnersResponse<OwnerLoans>>('/loans', undefined, signal)
 }
 
 export function fetchBills(owner: string, accountId: string, page?: number, pageSize?: number, signal?: AbortSignal) {

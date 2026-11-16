@@ -35,7 +35,17 @@ só fala com a própria origem.
 Em produção não há esse proxy. Sirva `dist/` e a API sob o mesmo domínio (por exemplo,
 um nginx que encaminha `/api` para a API) ou habilite CORS na `financial_api`.
 
+## Telas
+
+| Rota | O que mostra |
+|---|---|
+| `/` | Visão geral: totais do período (`/summary`) |
+| `/accounts` | Contas, cartões e faturas |
+| `/transactions` | Transações de todas as contas |
+| `/loans` | Empréstimos e financiamentos, com saldo para quitar, parcelas e último pagamento |
+
 ## Limitações
 
 - A API não tem autenticação. Use em rede local ou confiável.
 - Visão somente leitura e combinada, sem filtro por dono.
+- Empréstimos: a API não informa o valor da parcela mensal, e a tela não soma saldos. Os empréstimos ainda não entram na visão geral.

@@ -4,6 +4,7 @@ import { ThemeToggle } from './ThemeToggle'
 const links = [
   { to: '/', label: 'Visão geral', end: true },
   { to: '/accounts', label: 'Contas', end: false },
+  { to: '/loans', label: 'Empréstimos', end: false },
   { to: '/transactions', label: 'Transações', end: false },
 ]
 

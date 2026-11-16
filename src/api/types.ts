@@ -49,6 +49,42 @@ export interface OwnerCreditCards {
   error: ApiErrorBody | null
 }
 
+export interface LoanInstallments {
+  total: number | null
+  paid: number | null
+  remaining: number | null
+  pastDue: number | null
+}
+
+export interface LoanPayment {
+  paidDate: string | null
+  paidAmount: number | null
+}
+
+// Só id, itemId, productName, kind e currencyCode são garantidos.
+// `kind` é string para que um valor novo da API não quebre a tela.
+export interface Loan {
+  id: string
+  itemId: string
+  contractNumber: string | null
+  productName: string
+  kind: string
+  type: string | null
+  contractAmount: number | null
+  currencyCode: string
+  contractDate: string | null
+  dueDate: string | null
+  installments: LoanInstallments | null
+  outstandingBalance: number | null
+  lastPayment: LoanPayment | null
+}
+
+export interface OwnerLoans {
+  owner: string
+  loans: Loan[]
+  error: ApiErrorBody | null
+}
+
 export interface OwnersResponse<T> {
   owners: T[]
 }

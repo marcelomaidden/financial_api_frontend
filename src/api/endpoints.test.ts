@@ -5,10 +5,11 @@ import {
   fetchAccounts,
   fetchBills,
   fetchCreditCards,
+  fetchLoans,
   fetchSummary,
   fetchTransactionsPage,
 } from './endpoints'
-import { accountsFixture, creditCardsFixture, summaryFixture } from './fixtures'
+import { accountsFixture, creditCardsFixture, loansFixture, summaryFixture } from './fixtures'
 
 const origin = window.location.origin
 
@@ -30,6 +31,34 @@ describe('exemplos do README (tipos e leitura)', () => {
 
     const cards = await fetchCreditCards()
     expect(cards.owners[0].creditCards[0].brand).toBe('VISA')
+  })
+})
+
+describe('empréstimos', () => {
+  it('chama /loans sem owner e lê o exemplo', async () => {
+    let url!: URL
+    server.use(
+      http.get(`${origin}/api/loans`, ({ request }) => {
+        url = new URL(request.url)
+        return HttpResponse.json(loansFixture)
+      }),
+    )
+    const loans = await fetchLoans()
+    expect(url.pathname).toBe('/api/loans')
+    expect(url.search).toBe('')
+    expect(loans.owners[0].loans[0].installments).toEqual({ total: 120, paid: 65, remaining: 55, pastDue: 0 })
+    expect(loans.owners[1].error?.status).toBe(502)
+  })
+
+  it('converte o 502 em ApiRequestError', async () => {
+    server.use(
+      http.get(`${origin}/api/loans`, () =>
+        HttpResponse.json({ status: 502, error: 'Bad Gateway', message: 'Pluggy fora' }, { status: 502 }),
+      ),
+    )
+    const error = await fetchLoans().catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiRequestError)
+    expect(error).toMatchObject({ status: 502, message: 'Pluggy fora' })
   })
 })
 

@@ -1,4 +1,4 @@
-import type { OwnerAccounts, OwnerCreditCards, SummaryResponse } from './types'
+import type { OwnerAccounts, OwnerCreditCards, OwnerLoans, SummaryResponse } from './types'
 
 // Exemplos baseados no README da financial_api.
 export const summaryFixture: SummaryResponse = {
@@ -126,6 +126,37 @@ export const creditCardsFixture: { owners: OwnerCreditCards[] } = {
         },
       ],
       error: null,
+    },
+  ],
+}
+
+export const loansFixture: { owners: OwnerLoans[] } = {
+  owners: [
+    {
+      owner: 'marcelo',
+      loans: [
+        {
+          id: 'l1',
+          itemId: 'i1',
+          contractNumber: '000000721792794',
+          productName: 'Crédito Pessoal Consignado',
+          kind: 'LOAN',
+          type: 'CREDITO_PESSOAL_COM_CONSIGNACAO',
+          contractAmount: 50000,
+          currencyCode: 'BRL',
+          contractDate: '2022-08-01',
+          dueDate: '2028-01-15',
+          installments: { total: 120, paid: 65, remaining: 55, pastDue: 0 },
+          outstandingBalance: 25000,
+          lastPayment: { paidDate: '2023-07-15', paidAmount: 680.5 },
+        },
+      ],
+      error: null,
+    },
+    {
+      owner: 'luana',
+      loans: [],
+      error: { status: 502, error: 'Bad Gateway', message: 'Erro ao consultar a Pluggy' },
     },
   ],
 }

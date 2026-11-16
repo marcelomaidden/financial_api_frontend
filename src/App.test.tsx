@@ -12,8 +12,8 @@ describe('navegação', () => {
     server.use(
       http.get(`${origin}/api/summary`, () => HttpResponse.json(summaryFixture)),
       http.get(`${origin}/api/accounts`, () => HttpResponse.json(accountsFixture)),
-      http.get(`${origin}/api/owners/:owner/accounts/:accountId/transactions`, () =>
-        HttpResponse.json({ owner: 'marcelo', accountId: 'a1', transactions: [], nextCursor: null }),
+      http.get(`${origin}/api/transactions`, () =>
+        HttpResponse.json({ transactions: [], partial: false, errors: [] }),
       ),
       http.get(`${origin}/api/loans`, () => HttpResponse.json(loansFixture)),
       http.get(`${origin}/api/credit-cards`, () => HttpResponse.json(creditCardsFixture)),

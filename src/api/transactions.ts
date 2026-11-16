@@ -1,112 +1,57 @@
-import { fetchAccounts, fetchTransactionsPage, type DateRange } from './endpoints'
-import type { Account, Transaction } from './types'
-
-const CONCURRENCY = 4
-const MAX_PAGES_PER_ACCOUNT = 200
+import { fetchAccounts, fetchTransactions, type DateRange } from './endpoints'
+import type { Transaction } from './types'
 
 export interface TransactionRow {
   owner: string
   accountId: string
+  /** Nome da conta ou do cartão. Cai para o id quando a API não o informa. */
   accountName: string
   transaction: Transaction
 }
 
-export interface AccountFailure {
+export interface TransactionWarning {
   owner: string
-  accountName: string
+  /** `null` quando a falha foi ao listar as contas do dono. */
+  accountName: string | null
   message: string
 }
 
 export interface CombinedTransactions {
   rows: TransactionRow[]
-  /** Contas cuja consulta falhou. As demais continuam na lista. */
-  failures: AccountFailure[]
-  /** Donos cujas contas não puderam ser listadas. */
-  ownerErrors: { owner: string; message: string }[]
+  warnings: TransactionWarning[]
 }
 
-export interface Progress {
-  done: number
-  total: number
-}
-
-async function runLimited<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
-  const results: T[] = new Array(tasks.length)
-  let next = 0
-  async function worker() {
-    while (next < tasks.length) {
-      const index = next++
-      results[index] = await tasks[index]()
-    }
+/** Nome de cada conta e cartão (`/accounts` traz os dois), por `owner:id`. Se falhar, o id vira o nome. */
+async function fetchAccountNames(signal?: AbortSignal): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  try {
+    const response = await fetchAccounts(signal)
+    for (const entry of response.owners)
+      for (const account of entry.accounts) names.set(`${entry.owner}:${account.id}`, account.name)
+  } catch (error) {
+    if (signal?.aborted) throw error
   }
-  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker))
-  return results
+  return names
 }
 
-async function fetchAllPages(owner: string, accountId: string, range: DateRange, signal?: AbortSignal) {
-  const transactions: Transaction[] = []
-  let cursor: string | null = null
-  for (let page = 0; page < MAX_PAGES_PER_ACCOUNT; page++) {
-    const response = await fetchTransactionsPage(owner, accountId, range, cursor, signal)
-    transactions.push(...response.transactions)
-    if (!response.nextCursor) return transactions
-    cursor = response.nextCursor
-  }
-  throw new Error('Muitas páginas de transações.')
-}
-
-/** Reúne as transações de todas as contas de todos os donos no período, da mais recente para a mais antiga. */
+/** Transações de todos os donos e contas no período, na ordem em que a API devolve (data decrescente). */
 export async function fetchCombinedTransactions(
   range: DateRange,
   signal?: AbortSignal,
-  onProgress?: (progress: Progress) => void,
 ): Promise<CombinedTransactions> {
-  const accountsResponse = await fetchAccounts(signal)
+  const [response, names] = await Promise.all([fetchTransactions(range, signal), fetchAccountNames(signal)])
+  const nameOf = (owner: string, accountId: string) => names.get(`${owner}:${accountId}`) ?? accountId
 
-  const ownerErrors = accountsResponse.owners.flatMap((entry) =>
-    entry.error ? [{ owner: entry.owner, message: entry.error.message }] : [],
-  )
-  const targets: { owner: string; account: Account }[] = accountsResponse.owners.flatMap((entry) =>
-    entry.accounts.map((account) => ({ owner: entry.owner, account })),
-  )
-
-  let done = 0
-  onProgress?.({ done, total: targets.length })
-
-  const outcomes = await runLimited(
-    targets.map(({ owner, account }) => async () => {
-      try {
-        const transactions = await fetchAllPages(owner, account.id, range, signal)
-        return { owner, account, transactions }
-      } catch (error) {
-        if (signal?.aborted) throw error
-        const message = error instanceof Error ? error.message : 'Erro desconhecido.'
-        return { owner, account, error: message }
-      } finally {
-        done += 1
-        onProgress?.({ done, total: targets.length })
-      }
-    }),
-    CONCURRENCY,
-  )
-
-  const rows: TransactionRow[] = []
-  const failures: AccountFailure[] = []
-  for (const outcome of outcomes) {
-    if (outcome.error !== undefined) {
-      failures.push({ owner: outcome.owner, accountName: outcome.account.name, message: outcome.error })
-      continue
-    }
-    for (const transaction of outcome.transactions ?? []) {
-      rows.push({
-        owner: outcome.owner,
-        accountId: outcome.account.id,
-        accountName: outcome.account.name,
-        transaction,
-      })
-    }
-  }
-  rows.sort((a, b) => new Date(b.transaction.date).getTime() - new Date(a.transaction.date).getTime())
-
-  return { rows, failures, ownerErrors }
+  const rows = response.transactions.map(({ owner, accountId, ...transaction }) => ({
+    owner,
+    accountId,
+    accountName: nameOf(owner, accountId),
+    transaction,
+  }))
+  const warnings = response.errors.map((error) => ({
+    owner: error.owner,
+    accountName: error.accountId === null ? null : nameOf(error.owner, error.accountId),
+    message: error.message,
+  }))
+  return { rows, warnings }
 }

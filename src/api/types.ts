@@ -100,11 +100,23 @@ export interface Transaction {
   category: string | null
 }
 
-export interface TransactionsResponse {
+export interface OwnedTransaction extends Transaction {
   owner: string
   accountId: string
-  transactions: Transaction[]
-  nextCursor: string | null
+}
+
+export interface TransactionError {
+  owner: string
+  /** `null` quando a falha foi ao listar as contas do dono. */
+  accountId: string | null
+  status: number
+  message: string
+}
+
+export interface ConsolidatedTransactionsResponse {
+  transactions: OwnedTransaction[]
+  partial: boolean
+  errors: TransactionError[]
 }
 
 export interface Bill {

@@ -46,6 +46,11 @@ http {
     root /app/dist;
 
     location / {
+      ## Basic Auth: usuário e senha de BASIC_AUTH_USER/BASIC_AUTH_PASSWORD.
+      ## O arquivo é gerado por bin/gen-htpasswd antes do nginx subir (veja o Procfile).
+      auth_basic "Restrito";
+      auth_basic_user_file /app/.htpasswd;
+
       ## Roteamento client-side da SPA: devolve index.html quando o caminho não existe.
       error_page 404 = /index.html;
     }

@@ -31,3 +31,6 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# Arquivo de senhas do Basic Auth, gerado no dyno por bin/gen-htpasswd
+.htpasswd

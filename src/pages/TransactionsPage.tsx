@@ -5,6 +5,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
 import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
+import { TransactionRow } from '../components/TransactionRow'
 import { formatDate, formatMoney } from '../lib/format'
 
 function toIsoDate(date: Date): string {
@@ -93,39 +94,20 @@ export function TransactionsPage() {
                 <section key={label} aria-label={label}>
                   <h2 className="mb-1 text-sm font-medium text-slate-500 dark:text-slate-400">{label}</h2>
                   <ul className="divide-y rounded bg-white text-sm dark:bg-slate-800">
-                    {rows.map(({ owner, accountId, accountName, transaction }) => {
-                      const income = transaction.type === 'CREDIT'
-                      const money = formatMoney(Math.abs(transaction.amount), transaction.currencyCode)
-                      return (
-                        <li
-                          key={`${owner}:${accountId}:${transaction.id}`}
-                          className="flex items-center gap-3 p-2"
-                        >
-                          <span
-                            role="img"
-                            aria-label={income ? 'Entrada' : 'Saída'}
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                              income
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                            }`}
-                          >
-                            {income ? '↓' : '↑'}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{transaction.description}</span>
-                          <OwnerAvatar owner={owner} />
-                          <span className="text-slate-500 dark:text-slate-400">{accountName}</span>
-                          <span
-                            className={`w-32 text-right font-medium ${
-                              income ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                            }`}
-                          >
-                            {income ? '' : '− '}
-                            {money}
-                          </span>
-                        </li>
-                      )
-                    })}
+                    {rows.map(({ owner, accountId, accountName, transaction }) => (
+                      <TransactionRow
+                        key={`${owner}:${accountId}:${transaction.id}`}
+                        income={transaction.type === 'CREDIT'}
+                        description={transaction.description}
+                        aside={
+                          <>
+                            <OwnerAvatar owner={owner} />
+                            <span className="text-slate-500 dark:text-slate-400">{accountName}</span>
+                          </>
+                        }
+                        amount={formatMoney(Math.abs(transaction.amount), transaction.currencyCode)}
+                      />
+                    ))}
                   </ul>
                 </section>
               ))}

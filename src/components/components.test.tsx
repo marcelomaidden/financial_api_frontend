@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ErrorMessage } from './ErrorMessage'
 import { Loading } from './Loading'
 import { OwnerAvatar } from './OwnerAvatar'
 import { PartialWarning } from './PartialWarning'
+import { TransactionRow } from './TransactionRow'
 
 describe('Loading', () => {
   it('indica o carregamento', () => {
@@ -73,5 +74,53 @@ describe('OwnerAvatar', () => {
     render(<OwnerAvatar owner="marcelo" showName />)
     expect(screen.getByText('marcelo')).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+})
+
+describe('TransactionRow', () => {
+  function renderRow(props: Partial<Parameters<typeof TransactionRow>[0]> = {}) {
+    render(
+      <ul>
+        <TransactionRow income={false} description="Mercado" amount="R$ 30,00" {...props} />
+      </ul>,
+    )
+    return screen.getByRole('listitem')
+  }
+
+  it('mostra a saída com ícone, "−" e valor vermelho', () => {
+    const row = renderRow()
+    expect(within(row).getByRole('img', { name: 'Saída' })).toBeInTheDocument()
+    expect(within(row).getByText('Mercado')).toBeInTheDocument()
+    const amount = row.querySelector('span.text-red-600')!
+    expect(amount).toHaveTextContent('− R$ 30,00')
+    expect(row.querySelector('span.text-green-600')).toBeNull()
+  })
+
+  it('mostra a entrada com ícone e valor verdes, sem "−"', () => {
+    const row = renderRow({ income: true, description: 'Salário', amount: 'R$ 100,00' })
+    expect(within(row).getByRole('img', { name: 'Entrada' })).toBeInTheDocument()
+    const amount = row.querySelector('span.text-green-600')!
+    expect(amount).toHaveTextContent('R$ 100,00')
+    expect(amount).not.toHaveTextContent('−')
+    expect(row.querySelector('span.text-red-600')).toBeNull()
+  })
+
+  it('mostra detail sob a descrição, aside antes do valor e amountNote sob o valor', () => {
+    const row = renderRow({
+      detail: '05/11/2026',
+      aside: <span>Cartão Nubank</span>,
+      amountNote: 'US$ 58,00',
+    })
+    expect(within(row).getByText('05/11/2026')).toBeInTheDocument()
+    expect(within(row).getByText('Cartão Nubank')).toBeInTheDocument()
+    const note = within(row).getByText('US$ 58,00')
+    expect(note).toBeInTheDocument()
+    // A nota fica fora do <span> do valor: o texto do valor não a inclui.
+    expect(row.querySelector('span.text-red-600')).not.toHaveTextContent('US$')
+  })
+
+  it('não cria detail, aside nem amountNote quando não são informados', () => {
+    const row = renderRow()
+    expect(row.querySelectorAll('span.text-xs')).toHaveLength(0)
   })
 })

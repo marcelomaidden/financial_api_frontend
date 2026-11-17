@@ -119,6 +119,27 @@ describe('TransactionRow', () => {
     expect(row.querySelector('span.text-red-600')).not.toHaveTextContent('US$')
   })
 
+  it('troca o ícone de direção pelo conteúdo de leading', () => {
+    const row = renderRow({ leading: <span data-testid="avatar">M</span> })
+    expect(within(row).getByTestId('avatar')).toBeInTheDocument()
+    expect(within(row).queryByRole('img', { name: 'Saída' })).not.toBeInTheDocument()
+    expect(within(row).queryByRole('img', { name: 'Entrada' })).not.toBeInTheDocument()
+  })
+
+  it('mostra o valor neutro sem cor de entrada ou saída e sem "−"', () => {
+    const row = renderRow({ neutral: true, description: 'Nubank', amount: 'R$ 500,50' })
+    expect(row.querySelector('span.text-red-600')).toBeNull()
+    expect(row.querySelector('span.text-green-600')).toBeNull()
+    expect(row).not.toHaveTextContent('−')
+    expect(within(row).getByText('R$ 500,50')).toHaveClass('font-medium')
+  })
+
+  it('mantém o sinal negativo que já vem no valor neutro', () => {
+    const row = renderRow({ neutral: true, leading: <span>M</span>, amount: '-R$ 50,00' })
+    expect(within(row).getByText('-R$ 50,00')).toBeInTheDocument()
+    expect(row.querySelector('span.text-red-600')).toBeNull()
+  })
+
   it('não cria detail, aside nem amountNote quando não são informados', () => {
     const row = renderRow()
     expect(row.querySelectorAll('span.text-xs')).toHaveLength(0)

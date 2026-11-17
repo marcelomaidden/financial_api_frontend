@@ -15,9 +15,15 @@ para leitura e mostra a situação financeira de todos os donos de forma combina
 | Variável | Uso |
 |---|---|
 | `VITE_API_BASE_URL` | URL base que a SPA usa para chamar a API. Padrão `/api` |
+| `VITE_API_KEY` | Chave de API, enviada no cabeçalho `X-API-Key` em toda chamada. Deve ser igual à `APP_API_KEY` da API. Vazia ou ausente: o cabeçalho não é enviado |
 | `API_PROXY_TARGET` | Só em desenvolvimento: destino do proxy do Vite. Padrão `http://localhost:8080` |
 
-Copie `.env.example` para `.env` para alterar `VITE_API_BASE_URL`.
+Copie `.env.example` para `.env` para alterar `VITE_API_BASE_URL` e `VITE_API_KEY`.
+
+As variáveis `VITE_*` são lidas no **build** e ficam gravadas no JavaScript publicado. Isso tem duas consequências:
+
+- Quem abrir a SPA consegue ver a chave. Ela barra quem chama a API direto, mas não protege a própria SPA.
+- No Heroku, `heroku config:set VITE_API_KEY=...` só reinicia o app e não gera um bundle novo. Para a chave valer ou mudar, faça um novo deploy (por exemplo, `git commit --allow-empty` e push). Defina a variável antes do primeiro build.
 
 ## Comandos
 
@@ -30,12 +36,18 @@ npm test        # testes (Vitest)
 
 ## Como a SPA fala com a API
 
-A API usa a porta 8080 e não configura CORS. Em desenvolvimento, o Vite serve a SPA na
-porta 5173 e repassa `/api/*` para a API (removendo o prefixo `/api`), então o navegador
-só fala com a própria origem.
+A API usa a porta 8080, exige o cabeçalho `X-API-Key` em toda rota e só aceita chamadas de navegador
+das origens listadas em `APP_CORS_ALLOWED_ORIGINS`. Em desenvolvimento, o Vite serve a SPA na porta
+5173 e repassa `/api/*` para a API (removendo o prefixo `/api`), então o navegador só fala com a
+própria origem. O proxy repassa o `X-API-Key`.
 
-Em produção não há esse proxy. Sirva `dist/` e a API sob o mesmo domínio (por exemplo,
-um nginx que encaminha `/api` para a API) ou habilite CORS na `financial_api`.
+Em produção não há esse proxy. Há duas opções:
+
+- Sirva `dist/` e a API sob o mesmo domínio (por exemplo, um nginx que encaminha `/api` para a API).
+- Aponte `VITE_API_BASE_URL` para a URL da API e inclua a origem da SPA em `APP_CORS_ALLOWED_ORIGINS`
+  na API (esquema e porta, sem barra no final).
+
+Uma chave ausente ou errada gera 401, e a tela mostra a mensagem devolvida pela API.
 
 ## Integração contínua
 
@@ -58,6 +70,6 @@ em Settings, Branches, na regra de proteção da `master`.
 
 ## Limitações
 
-- A API não tem autenticação. Use em rede local ou confiável.
+- A autenticação é só a chave de API, que fica visível no JavaScript da SPA. Não há login de usuário, então não publique a SPA onde os dados não possam ser vistos por quem a abrir.
 - Visão somente leitura e combinada, sem filtro por dono.
 - Empréstimos: a API não informa o valor da parcela mensal, e a tela não soma saldos. Os empréstimos ainda não entram na visão geral.

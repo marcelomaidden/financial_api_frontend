@@ -2,6 +2,9 @@ import type { ApiErrorBody } from './types'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api'
 
+/** Chave de API lida no build. Ausente ou em branco: o cabeçalho X-API-Key não é enviado. */
+const apiKey = ((import.meta.env.VITE_API_KEY as string | undefined) ?? '').trim()
+
 /** Erro de uma chamada à API. `status` é 0 quando não houve resposta (rede). */
 export class ApiRequestError extends Error {
   readonly status: number
@@ -37,7 +40,10 @@ function isErrorBody(value: unknown): value is ApiErrorBody {
 export async function getJson<T>(path: string, params?: QueryParams, signal?: AbortSignal): Promise<T> {
   let response: Response
   try {
-    response = await fetch(buildUrl(path, params), { signal })
+    response = await fetch(buildUrl(path, params), {
+      signal,
+      headers: apiKey ? { 'X-API-Key': apiKey } : undefined,
+    })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new ApiRequestError(0, 'Não foi possível conectar à API.')

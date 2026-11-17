@@ -12,16 +12,16 @@
 
 ## 3. Configuração do nginx e do Procfile
 
-- [ ] 3.1 Em `config/nginx.conf.erb`, ativar `auth_basic` e `auth_basic_user_file` no `location /`, mantendo o redirecionamento para https e o `error_page 404 = /index.html`. Verificar renderizando o `.erb` com `erb` e, se o nginx estiver instalado, rodando `nginx -t` na configuração gerada.
-- [ ] 3.2 Alterar o `Procfile` para `web: bin/gen-htpasswd && bin/start-nginx-static`. Verificar que o conteúdo está correto e que uma falha do script impede a segunda parte (simulando com uma variável faltando).
+- [x] 3.1 Em `config/nginx.conf.erb`, ativar `auth_basic` e `auth_basic_user_file` no `location /`, mantendo o redirecionamento para https e o `error_page 404 = /index.html`. Verificar renderizando o `.erb` com `erb` e, se o nginx estiver instalado, rodando `nginx -t` na configuração gerada.
+- [x] 3.2 Alterar o `Procfile` para `web: bin/gen-htpasswd && bin/start-nginx-static`. Verificar que o conteúdo está correto e que uma falha do script impede a segunda parte (simulando com uma variável faltando).
 
 ## 4. Documentação
 
-- [ ] 4.1 No `README.md`, documentar `BASIC_AUTH_USER` e `BASIC_AUTH_PASSWORD` (obrigatórias, falha fechada, restrição do `:`), que a troca não exige rebuild, e atualizar "Limitações" com o que o Basic Auth não cobre (quem tem a senha vê a chave, sem logout, sem limite de tentativas). Verificar relendo o README: nada contradiz o comportamento da spec.
+- [x] 4.1 No `README.md`, documentar `BASIC_AUTH_USER` e `BASIC_AUTH_PASSWORD` (obrigatórias, falha fechada, restrição do `:`), que a troca não exige rebuild, e atualizar "Limitações" com o que o Basic Auth não cobre (quem tem a senha vê a chave, sem logout, sem limite de tentativas). Verificar relendo o README: nada contradiz o comportamento da spec.
 
 ## 5. Verificação final
 
-- [ ] 5.1 Rodar `npm run lint`, `npm test` e `npm run build` e verificar que os três passam.
+- [x] 5.1 Rodar `npm run lint`, `npm test` e `npm run build` e verificar que os três passam.
 - [ ] 5.2 No Heroku, com as variáveis definidas e um deploy novo, conferir com `curl` e no navegador: sem credencial dá 401 com `WWW-Authenticate`, credencial errada dá 401, credencial correta dá 200, http redireciona para https, `/accounts` e um arquivo do bundle sem credencial dão 401, e a SPA carrega e consulta a API depois do login.
 - [ ] 5.3 No Heroku, remover uma das variáveis e verificar que o dyno não sobe, que o log cita o nome da variável e que não contém valores. Restaurar a variável em seguida.
 

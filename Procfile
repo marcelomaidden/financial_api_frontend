@@ -1,1 +1,1 @@
-web: bin/start-nginx-static
+web: bin/gen-htpasswd && bin/start-nginx-static

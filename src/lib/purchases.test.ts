@@ -25,7 +25,7 @@ describe('groupPurchases', () => {
     })
     expect(group.subtotal).toBe(478.19)
     expect(group.excludedCount).toBe(0)
-    expect(group.purchases).toHaveLength(3)
+    expect(group.items).toHaveLength(3)
   })
 
   it('soma em centavos, sem erro de ponto flutuante', () => {
@@ -54,7 +54,7 @@ describe('groupPurchases', () => {
     })
     expect(group.subtotal).toBe(30)
     expect(group.excludedCount).toBe(2)
-    expect(group.purchases).toHaveLength(3)
+    expect(group.items).toHaveLength(3)
   })
 
   it('ordena os grupos pelo maior subtotal', () => {
@@ -80,7 +80,7 @@ describe('groupPurchases', () => {
         purchase({ id: 'nov6', date: '2026-11-06T10:00:00Z' }),
       ],
     })
-    expect(group.purchases.map((p) => p.id)).toEqual(['nov6', 'nov5', 'set6'])
+    expect(group.items.map((p) => p.id)).toEqual(['nov6', 'nov5', 'set6'])
   })
 
   it('manda data inválida para o fim, sem embaralhar as outras', () => {
@@ -92,7 +92,7 @@ describe('groupPurchases', () => {
         purchase({ id: 'nova', date: '2026-11-06T10:00:00Z' }),
       ],
     })
-    expect(group.purchases.map((p) => p.id)).toEqual(['nova', 'antiga', 'ruim1', 'ruim2'])
+    expect(group.items.map((p) => p.id)).toEqual(['nova', 'antiga', 'ruim1', 'ruim2'])
   })
 
   it('separa o mesmo accountId de donos diferentes e de cartões diferentes', () => {
@@ -101,8 +101,8 @@ describe('groupPurchases', () => {
       luana: [purchase({ id: 'c', accountId: 'c1', amount: 30 })],
     })
     expect(groups.map((group) => group.key).sort()).toEqual(['luana:c1', 'marcelo:c1', 'marcelo:c2'])
-    expect(groups.find((group) => group.key === 'luana:c1')?.purchases.map((p) => p.id)).toEqual(['c'])
-    expect(groups.find((group) => group.key === 'marcelo:c1')?.purchases.map((p) => p.id)).toEqual(['a'])
+    expect(groups.find((group) => group.key === 'luana:c1')?.items.map((p) => p.id)).toEqual(['c'])
+    expect(groups.find((group) => group.key === 'marcelo:c1')?.items.map((p) => p.id)).toEqual(['a'])
   })
 
   it('não altera a lista recebida', () => {

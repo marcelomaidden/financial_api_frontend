@@ -3,6 +3,10 @@ import type { ReactNode } from 'react'
 interface TransactionRowProps {
   /** Entrada (ícone e valor verdes) ou saída (ícone e valor vermelhos, valor precedido de "−"). */
   income: boolean
+  /** Conteúdo no lugar do ícone de direção, como o avatar do dono. */
+  leading?: ReactNode
+  /** Valor em cor neutra e sem "−", para o que não é entrada nem saída, como um saldo. */
+  neutral?: boolean
   description: ReactNode
   /** Segunda linha, em tom apagado, sob a descrição. */
   detail?: ReactNode
@@ -17,20 +21,31 @@ interface TransactionRowProps {
 const MUTED = 'text-slate-500 dark:text-slate-400'
 
 /** Linha de uma transação: ícone de entrada ou saída, descrição e valor à direita. */
-export function TransactionRow({ income, description, detail, aside, amount, amountNote }: TransactionRowProps) {
+export function TransactionRow({
+  income,
+  leading,
+  neutral = false,
+  description,
+  detail,
+  aside,
+  amount,
+  amountNote,
+}: TransactionRowProps) {
   return (
     <li className="flex items-center gap-3 p-2">
-      <span
-        role="img"
-        aria-label={income ? 'Entrada' : 'Saída'}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-          income
-            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-        }`}
-      >
-        {income ? '↓' : '↑'}
-      </span>
+      {leading ?? (
+        <span
+          role="img"
+          aria-label={income ? 'Entrada' : 'Saída'}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            income
+              ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+              : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+          }`}
+        >
+          {income ? '↓' : '↑'}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate">{description}</span>
         {detail && <span className={`block text-xs ${MUTED}`}>{detail}</span>}
@@ -38,9 +53,11 @@ export function TransactionRow({ income, description, detail, aside, amount, amo
       {aside}
       <span className="flex w-32 flex-col items-end">
         <span
-          className={`font-medium ${income ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+          className={`font-medium ${
+            neutral ? '' : income ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+          }`}
         >
-          {income ? '' : '− '}
+          {income || neutral ? '' : '− '}
           {amount}
         </span>
         {amountNote && <span className={`text-xs ${MUTED}`}>{amountNote}</span>}

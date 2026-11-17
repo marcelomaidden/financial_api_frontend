@@ -9,55 +9,116 @@ import type {
   OwedBill,
   SummarySection,
 } from '../api/types'
+import { AccountGroup } from '../components/AccountGroup'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
 import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
 import { TransactionRow } from '../components/TransactionRow'
 import { formatDate, formatMoney } from '../lib/format'
+import { groupByAccount, toCents } from '../lib/groupByAccount'
+import { accountsByBalance, flattenDetail, owedBillsByDueDate } from '../lib/orderRows'
 import { groupPurchases } from '../lib/purchases'
 
-function flatten<T>(section: SummarySection<T>): { owner: string; item: T }[] {
-  return Object.entries(section.detail).flatMap(([owner, items]) => items.map((item) => ({ owner, item })))
-}
-
-type SummaryCardProps<T> = {
+interface SummaryCardProps<T> {
   title: string
   note?: string
   section: SummarySection<T>
-} & (
-  | { renderItem: (item: T) => ReactNode; renderDetail?: never }
-  /** Desenha o detalhe inteiro no lugar da lista de itens (a mensagem de lista vazia continua valendo). */
-  | { renderDetail: (section: SummarySection<T>) => ReactNode; renderItem?: never }
-)
+  /** Desenha o detalhe do card (a mensagem de lista vazia fica por conta do card). */
+  renderDetail: (section: SummarySection<T>) => ReactNode
+}
 
-function SummaryCard<T>({ title, note, section, renderItem, renderDetail }: SummaryCardProps<T>) {
-  const rows = flatten(section)
+function SummaryCard<T>({ title, note, section, renderDetail }: SummaryCardProps<T>) {
+  const count = flattenDetail(section.detail).length
   return (
     <section aria-label={title} className="rounded border bg-white dark:bg-slate-800 p-4">
       <h2 className="text-sm text-slate-500 dark:text-slate-400">{title}</h2>
       <p data-testid="total" className="text-2xl font-semibold">{formatMoney(section.total.value, section.total.currencyCode)}</p>
       {note && <p className="text-xs text-slate-500 dark:text-slate-400">{note}</p>}
       <details className="mt-2">
-        <summary className="cursor-pointer text-sm text-blue-700 dark:text-blue-400">Ver detalhe ({rows.length})</summary>
-        {rows.length === 0 ? (
+        <summary className="cursor-pointer text-sm text-blue-700 dark:text-blue-400">Ver detalhe ({count})</summary>
+        {count === 0 ? (
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Nenhum item.</p>
-        ) : renderDetail ? (
-          renderDetail(section)
         ) : (
-          <ul className="mt-2 divide-y text-sm">
-            {rows.map(({ owner, item }, index) => (
-              <li key={index} className="flex items-center justify-between gap-2 py-1">
-                <span className="flex items-center gap-2">
-                  <OwnerAvatar owner={owner} />
-                  {renderItem!(item)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          renderDetail(section)
         )}
       </details>
     </section>
+  )
+}
+
+function IncomeRow({ income }: { income: IncomeTransaction }) {
+  return (
+    <TransactionRow
+      income
+      description={income.description}
+      detail={formatDate(income.date)}
+      amount={formatMoney(income.amount, income.currencyCode)}
+    />
+  )
+}
+
+function IncomesByAccount({
+  section,
+  nameOf,
+}: {
+  section: SummarySection<IncomeTransaction>
+  nameOf: (owner: string, accountId: string) => string
+}) {
+  const groups = groupByAccount(section.detail, {
+    accountId: (income) => income.accountId,
+    date: (income) => income.date,
+    cents: (income) => toCents(income.amount),
+  })
+  return (
+    <div className="mt-2 space-y-3 text-sm">
+      {groups.map((group) => (
+        <AccountGroup
+          key={group.key}
+          owner={group.owner}
+          name={nameOf(group.owner, group.accountId)}
+          subtotal={group.subtotal}
+        >
+          {group.items.map((income) => (
+            <IncomeRow key={income.id} income={income} />
+          ))}
+        </AccountGroup>
+      ))}
+    </div>
+  )
+}
+
+function AccountBalances({ section }: { section: SummarySection<IncomeAccount> }) {
+  return (
+    <ul className="mt-2 divide-y text-sm">
+      {accountsByBalance(section.detail).map(({ owner, item: account }) => (
+        <TransactionRow
+          key={`${owner}:${account.id}`}
+          income={false}
+          neutral
+          leading={<OwnerAvatar owner={owner} />}
+          description={account.name}
+          amount={formatMoney(account.balance, account.currencyCode)}
+        />
+      ))}
+    </ul>
+  )
+}
+
+function OwedBills({ section }: { section: SummarySection<OwedBill> }) {
+  return (
+    <ul className="mt-2 divide-y text-sm">
+      {owedBillsByDueDate(section.detail).map(({ owner, item: bill }) => (
+        <TransactionRow
+          key={`${owner}:${bill.id}`}
+          income={false}
+          description={bill.name}
+          detail={`vence em ${formatDate(bill.dueDate)}`}
+          aside={<OwnerAvatar owner={owner} />}
+          amount={formatMoney(bill.totalAmount, bill.currencyCode)}
+        />
+      ))}
+    </ul>
   )
 }
 
@@ -94,32 +155,25 @@ function PurchasesByCard({
   const groups = groupPurchases(section.detail)
   return (
     <div className="mt-2 space-y-3 text-sm">
-      {groups.map((group) => {
-        const name = nameOf(group.owner, group.accountId)
-        return (
-          <div key={group.key} role="group" aria-label={name}>
-            <div className="flex items-center justify-between gap-2 border-b py-1 font-medium">
-              <span className="flex items-center gap-2">
-                <OwnerAvatar owner={group.owner} />
-                {name}
-              </span>
-              <span data-testid="group-subtotal">{formatMoney(group.subtotal, 'BRL')}</span>
-            </div>
-            {group.excludedCount > 0 && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {group.excludedCount === 1
-                  ? '1 compra em outra moeda sem valor em BRL está fora do subtotal.'
-                  : `${group.excludedCount} compras em outra moeda sem valor em BRL estão fora do subtotal.`}
-              </p>
-            )}
-            <ul className="divide-y">
-              {group.purchases.map((purchase) => (
-                <PurchaseRow key={purchase.id} purchase={purchase} />
-              ))}
-            </ul>
-          </div>
-        )
-      })}
+      {groups.map((group) => (
+        <AccountGroup
+          key={group.key}
+          owner={group.owner}
+          name={nameOf(group.owner, group.accountId)}
+          subtotal={group.subtotal}
+          note={
+            group.excludedCount > 0
+              ? group.excludedCount === 1
+                ? '1 compra em outra moeda sem valor em BRL está fora do subtotal.'
+                : `${group.excludedCount} compras em outra moeda sem valor em BRL estão fora do subtotal.`
+              : undefined
+          }
+        >
+          {group.items.map((purchase) => (
+            <PurchaseRow key={purchase.id} purchase={purchase} />
+          ))}
+        </AccountGroup>
+      ))}
     </div>
   )
 }
@@ -193,30 +247,17 @@ export function OverviewPage() {
             <SummaryCard<IncomeAccount>
               title="Saldo disponível"
               section={summary.incomes.available}
-              renderItem={(item) => (
-                <span>
-                  {item.name} · {formatMoney(item.balance, item.currencyCode)}
-                </span>
-              )}
+              renderDetail={(section) => <AccountBalances section={section} />}
             />
             <SummaryCard<IncomeTransaction>
               title="Entradas no período"
               section={summary.incomes.transactions}
-              renderItem={(item) => (
-                <span>
-                  {item.description} · {formatDate(item.date)} · {formatMoney(item.amount, item.currencyCode)}
-                </span>
-              )}
+              renderDetail={(section) => <IncomesByAccount section={section} nameOf={nameOf} />}
             />
             <SummaryCard<OwedBill>
               title="Faturas a pagar"
               section={summary.expenses.owed}
-              renderItem={(item) => (
-                <span>
-                  {item.name} · vence em {formatDate(item.dueDate)} ·{' '}
-                  {formatMoney(item.totalAmount, item.currencyCode)}
-                </span>
-              )}
+              renderDetail={(section) => <OwedBills section={section} />}
             />
             <SummaryCard<ExpenseTransaction>
               title="Compras do cartão sem fatura"

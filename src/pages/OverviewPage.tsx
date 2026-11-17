@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { fetchSummary } from '../api/endpoints'
+import { fetchAccountNames } from '../api/transactions'
 import type {
   ExpenseTransaction,
   IncomeAccount,
@@ -13,22 +14,23 @@ import { Loading } from '../components/Loading'
 import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
 import { formatDate, formatMoney } from '../lib/format'
+import { groupPurchases } from '../lib/purchases'
 
 function flatten<T>(section: SummarySection<T>): { owner: string; item: T }[] {
   return Object.entries(section.detail).flatMap(([owner, items]) => items.map((item) => ({ owner, item })))
 }
 
-function SummaryCard<T>({
-  title,
-  note,
-  section,
-  renderItem,
-}: {
+type SummaryCardProps<T> = {
   title: string
   note?: string
   section: SummarySection<T>
-  renderItem: (item: T) => ReactNode
-}) {
+} & (
+  | { renderItem: (item: T) => ReactNode; renderDetail?: never }
+  /** Desenha o detalhe inteiro no lugar da lista de itens (a mensagem de lista vazia continua valendo). */
+  | { renderDetail: (section: SummarySection<T>) => ReactNode; renderItem?: never }
+)
+
+function SummaryCard<T>({ title, note, section, renderItem, renderDetail }: SummaryCardProps<T>) {
   const rows = flatten(section)
   return (
     <section aria-label={title} className="rounded border bg-white dark:bg-slate-800 p-4">
@@ -39,13 +41,15 @@ function SummaryCard<T>({
         <summary className="cursor-pointer text-sm text-blue-700 dark:text-blue-400">Ver detalhe ({rows.length})</summary>
         {rows.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Nenhum item.</p>
+        ) : renderDetail ? (
+          renderDetail(section)
         ) : (
           <ul className="mt-2 divide-y text-sm">
             {rows.map(({ owner, item }, index) => (
               <li key={index} className="flex items-center justify-between gap-2 py-1">
                 <span className="flex items-center gap-2">
                   <OwnerAvatar owner={owner} />
-                  {renderItem(item)}
+                  {renderItem!(item)}
                 </span>
               </li>
             ))}
@@ -74,6 +78,48 @@ function ExpenseTransactionItem({ item }: { item: ExpenseTransaction }) {
   )
 }
 
+function PurchasesByCard({
+  section,
+  nameOf,
+}: {
+  section: SummarySection<ExpenseTransaction>
+  nameOf: (owner: string, accountId: string) => string
+}) {
+  const groups = groupPurchases(section.detail)
+  return (
+    <div className="mt-2 space-y-3 text-sm">
+      {groups.map((group) => {
+        const name = nameOf(group.owner, group.accountId)
+        return (
+          <div key={group.key} role="group" aria-label={name}>
+            <div className="flex items-center justify-between gap-2 border-b py-1 font-medium">
+              <span className="flex items-center gap-2">
+                <OwnerAvatar owner={group.owner} />
+                {name}
+              </span>
+              <span data-testid="group-subtotal">{formatMoney(group.subtotal, 'BRL')}</span>
+            </div>
+            {group.excludedCount > 0 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {group.excludedCount === 1
+                  ? '1 compra em outra moeda sem valor em BRL está fora do subtotal.'
+                  : `${group.excludedCount} compras em outra moeda sem valor em BRL estão fora do subtotal.`}
+              </p>
+            )}
+            <ul className="divide-y">
+              {group.purchases.map((purchase) => (
+                <li key={purchase.id} className="py-1">
+                  <ExpenseTransactionItem item={purchase} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function OverviewPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -83,6 +129,13 @@ export function OverviewPage() {
     queryFn: ({ signal }) =>
       fetchSummary({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }, signal),
   })
+
+  // Só os nomes dos cartões: não bloqueia o resumo e, se falhar, os grupos usam o accountId.
+  const names = useQuery({
+    queryKey: ['account-names'],
+    queryFn: ({ signal }) => fetchAccountNames(signal),
+  })
+  const nameOf = (owner: string, accountId: string) => names.data?.get(`${owner}:${accountId}`) ?? accountId
 
   const summary = query.data
 
@@ -165,7 +218,7 @@ export function OverviewPage() {
               title="Compras do cartão sem fatura"
               note="Estado atual: não depende do período."
               section={summary.expenses.transactions}
-              renderItem={(item) => <ExpenseTransactionItem item={item} />}
+              renderDetail={(section) => <PurchasesByCard section={section} nameOf={nameOf} />}
             />
           </div>
         </>

@@ -1,0 +1,5 @@
+# Arquivos que o Heroku executa ou renderiza precisam ficar com fim de linha LF em qualquer máquina.
+# Com core.autocrlf=true, o checkout viraria CRLF e o shebang de bin/gen-htpasswd ("ruby\r") deixaria de funcionar.
+bin/* text eol=lf
+Procfile text eol=lf
+*.erb text eol=lf

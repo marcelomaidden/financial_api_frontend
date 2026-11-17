@@ -87,8 +87,11 @@ describe('OverviewPage', () => {
     renderWithProviders(<OverviewPage />)
     const purchases = await screen.findByRole('region', { name: 'Compras do cartão sem fatura' })
 
-    expect(within(purchases).getByText(/Notebook \(3\/10\)/)).toBeInTheDocument()
-    expect(within(purchases).getByText(/Netflix.*US\$.*58,00 → .*298,19/)).toBeInTheDocument()
+    const notebook = within(purchases).getByText('Notebook').closest('li')!
+    expect(notebook).toHaveTextContent('3/10')
+    const netflix = within(purchases).getByText('Netflix').closest('li')!
+    expect(netflix.querySelector('span.text-red-600')).toHaveTextContent(/− .*298,19/)
+    expect(within(netflix).getByText(/US\$.*58,00/)).toBeInTheDocument()
   })
 
   it('avisa dados parciais e mantém os totais recebidos', async () => {
@@ -268,6 +271,65 @@ describe('OverviewPage: compras do cartão sem fatura por cartão', () => {
     expect(within(group).getByTestId('group-subtotal')).toHaveTextContent(/30,00/)
     expect(within(group).getByText(/Sem conversão/)).toBeInTheDocument()
     expect(within(group).getByText('1 compra em outra moeda sem valor em BRL está fora do subtotal.')).toBeInTheDocument()
+  })
+
+  it('mostra cada compra como saída, com ícone, data, parcela e valor vermelho com "−"', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    const group = await screen.findByRole('group', { name: 'Cartão Nubank' })
+
+    expect(within(group).getAllByRole('img', { name: 'Saída' })).toHaveLength(3)
+    expect(within(group).queryByRole('img', { name: 'Entrada' })).not.toBeInTheDocument()
+
+    const mercado = within(group).getByText('Mercado').closest('li')!
+    expect(mercado).toHaveTextContent('06/11/2026')
+    expect(mercado.querySelector('span.text-red-600')).toHaveTextContent(/− .*30,00/)
+    // Só a data é apagada: sem parcela nem valor original.
+    expect(mercado.querySelectorAll('span.text-xs')).toHaveLength(1)
+
+    const notebook = within(group).getByText('Notebook').closest('li')!
+    expect(notebook).toHaveTextContent('06/09/2026')
+    expect(notebook).toHaveTextContent('3/10')
+    expect(notebook.querySelector('span.text-red-600')).toHaveTextContent(/− .*150,00/)
+  })
+
+  it('mostra o BRL como valor principal e o valor original apagado na compra estrangeira', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    const group = await screen.findByRole('group', { name: 'Cartão Nubank' })
+
+    const netflix = within(group).getByText('Netflix').closest('li')!
+    const main = netflix.querySelector('span.text-red-600')!
+    expect(main).toHaveTextContent(/− .*298,19/)
+    expect(main).not.toHaveTextContent('US$')
+    const note = within(netflix).getByText(/US\$.*58,00/)
+    expect(note).toHaveClass('text-xs')
+  })
+
+  it('mostra só o valor original, sem nota, quando a compra estrangeira não tem valor em BRL', async () => {
+    const summary = summaryWith(
+      { marcelo: [purchase('b', 'c1', 58, { currencyCode: 'USD', description: 'Sem conversão' })] },
+      0,
+    )
+    server.use(http.get(url, () => HttpResponse.json(summary)))
+    renderWithProviders(<OverviewPage />)
+    const group = await screen.findByRole('group', { name: 'Cartão Nubank' })
+
+    const row = within(group).getByText('Sem conversão').closest('li')!
+    expect(row.querySelector('span.text-red-600')).toHaveTextContent(/− .*US\$.*58,00/)
+    expect(within(row).getAllByText(/US\$/)).toHaveLength(1)
+  })
+
+  it('mostra o dono e o cartão só no cabeçalho do grupo, e não em cada linha', async () => {
+    server.use(http.get(url, () => HttpResponse.json(twoOwners)))
+    renderWithProviders(<OverviewPage />)
+    const group = await screen.findByRole('group', { name: 'Cartão Nubank' })
+
+    expect(within(group).getAllByRole('img', { name: 'marcelo' })).toHaveLength(1)
+    for (const row of within(group).getAllByRole('listitem')) {
+      expect(within(row).queryByRole('img', { name: 'marcelo' })).not.toBeInTheDocument()
+      expect(within(row).queryByText('Cartão Nubank')).not.toBeInTheDocument()
+    }
   })
 
   it('mostra "Nenhum item." e nenhum grupo quando não há compras', async () => {

@@ -13,6 +13,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
 import { OwnerAvatar } from '../components/OwnerAvatar'
 import { PartialWarning } from '../components/PartialWarning'
+import { TransactionRow } from '../components/TransactionRow'
 import { formatDate, formatMoney } from '../lib/format'
 import { groupPurchases } from '../lib/purchases'
 
@@ -60,21 +61,26 @@ function SummaryCard<T>({ title, note, section, renderItem, renderDetail }: Summ
   )
 }
 
-function ExpenseTransactionItem({ item }: { item: ExpenseTransaction }) {
-  const foreign = item.amountInAccountCurrency !== undefined
+function PurchaseRow({ purchase }: { purchase: ExpenseTransaction }) {
+  const inAccountCurrency = purchase.amountInAccountCurrency !== undefined
+  const original = formatMoney(purchase.amount, purchase.currencyCode)
   return (
-    <span>
-      {item.description}
-      {item.installment && ` (${item.installment.number}/${item.installment.total})`} ·{' '}
-      {formatDate(item.date)} ·{' '}
-      {foreign ? (
+    <TransactionRow
+      income={false}
+      description={
         <>
-          {formatMoney(item.amount, item.currencyCode)} → {formatMoney(item.amountInAccountCurrency!, 'BRL')}
+          {purchase.description}
+          {purchase.installment && (
+            <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
+              {purchase.installment.number}/{purchase.installment.total}
+            </span>
+          )}
         </>
-      ) : (
-        formatMoney(item.amount, item.currencyCode)
-      )}
-    </span>
+      }
+      detail={formatDate(purchase.date)}
+      amount={inAccountCurrency ? formatMoney(purchase.amountInAccountCurrency!, 'BRL') : original}
+      amountNote={inAccountCurrency && purchase.currencyCode !== 'BRL' ? original : undefined}
+    />
   )
 }
 
@@ -108,9 +114,7 @@ function PurchasesByCard({
             )}
             <ul className="divide-y">
               {group.purchases.map((purchase) => (
-                <li key={purchase.id} className="py-1">
-                  <ExpenseTransactionItem item={purchase} />
-                </li>
+                <PurchaseRow key={purchase.id} purchase={purchase} />
               ))}
             </ul>
           </div>

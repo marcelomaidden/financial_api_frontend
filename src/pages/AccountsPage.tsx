@@ -142,10 +142,19 @@ export function AccountsPage() {
         <ul className="space-y-2">
           {accounts.map(({ owner, account }) => (
             <li key={`${owner}:${account.id}`} className="flex items-center justify-between rounded border bg-white dark:bg-slate-800 p-3">
-              <span className="flex items-center gap-2">
-                <OwnerAvatar owner={owner} showName />
-                <span className="font-medium">{account.name}</span>
-                {account.number && <span className="text-slate-500 dark:text-slate-400">{account.number}</span>}
+              <span>
+                <span className="flex items-center gap-2">
+                  <OwnerAvatar owner={owner} showName />
+                  <span className="font-medium">{account.name}</span>
+                  {account.number && <span className="text-slate-500 dark:text-slate-400">{account.number}</span>}
+                </span>
+                <Link
+                  to={`/transactions?${new URLSearchParams({ owner, accountId: account.id })}`}
+                  className="mt-2 inline-block text-sm text-blue-700 dark:text-blue-400"
+                >
+                  Ver transações{' '}
+                  <span className="sr-only">de {account.name}</span>
+                </Link>
               </span>
               <span>{formatMoney(account.balance, account.currencyCode)}</span>
             </li>

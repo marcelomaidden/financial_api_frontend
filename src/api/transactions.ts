@@ -19,6 +19,14 @@ export interface TransactionWarning {
 export interface CombinedTransactions {
   rows: TransactionRow[]
   warnings: TransactionWarning[]
+  /** Nome da conta filtrada (o id quando o nome não está disponível), ou `null` sem filtro. */
+  filteredAccountName: string | null
+}
+
+/** Uma conta de um dono, para filtrar as transações. */
+export interface AccountFilter {
+  owner: string
+  accountId: string
 }
 
 /** Nome de cada conta e cartão (`/accounts` traz os dois), por `owner:id`. Se falhar, o id vira o nome. */
@@ -34,12 +42,19 @@ export async function fetchAccountNames(signal?: AbortSignal): Promise<Map<strin
   return names
 }
 
-/** Transações de todos os donos e contas no período, na ordem em que a API devolve (data decrescente). */
+/**
+ * Transações do período, na ordem em que a API devolve (data decrescente). Sem `account`, de todos os
+ * donos e contas. Com `account`, só dessa conta.
+ */
 export async function fetchCombinedTransactions(
   range: DateRange,
+  account?: AccountFilter,
   signal?: AbortSignal,
 ): Promise<CombinedTransactions> {
-  const [response, names] = await Promise.all([fetchTransactions(range, signal), fetchAccountNames(signal)])
+  const [response, names] = await Promise.all([
+    fetchTransactions({ ...range, ...account }, signal),
+    fetchAccountNames(signal),
+  ])
   const nameOf = (owner: string, accountId: string) => names.get(`${owner}:${accountId}`) ?? accountId
 
   const rows = response.transactions.map(({ owner, accountId, ...transaction }) => ({
@@ -53,5 +68,6 @@ export async function fetchCombinedTransactions(
     accountName: error.accountId === null ? null : nameOf(error.owner, error.accountId),
     message: error.message,
   }))
-  return { rows, warnings }
+  const filteredAccountName = account ? nameOf(account.owner, account.accountId) : null
+  return { rows, warnings, filteredAccountName }
 }

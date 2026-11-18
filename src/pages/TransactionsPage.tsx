@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { fetchCombinedTransactions } from '../api/transactions'
+import { Link, useSearchParams } from 'react-router-dom'
+import { fetchCombinedTransactions, type AccountFilter } from '../api/transactions'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Loading } from '../components/Loading'
 import { OwnerAvatar } from '../components/OwnerAvatar'
@@ -39,11 +40,17 @@ export function TransactionsPage() {
   const [dateFrom, setDateFrom] = useState(initial.from)
   const [dateTo, setDateTo] = useState(initial.to)
 
+  // Filtro de uma conta vindo do endereço (link "Ver transações" da aba Contas). Vale só com dono e conta.
+  const [params] = useSearchParams()
+  const owner = params.get('owner')?.trim() ?? ''
+  const accountId = params.get('accountId')?.trim() ?? ''
+  const account: AccountFilter | undefined = owner && accountId ? { owner, accountId } : undefined
+
   const ready = dateFrom !== '' && dateTo !== ''
   const query = useQuery({
-    queryKey: ['transactions', dateFrom, dateTo],
+    queryKey: ['transactions', dateFrom, dateTo, account?.owner ?? null, account?.accountId ?? null],
     enabled: ready,
-    queryFn: ({ signal }) => fetchCombinedTransactions({ dateFrom, dateTo }, signal),
+    queryFn: ({ signal }) => fetchCombinedTransactions({ dateFrom, dateTo }, account, signal),
   })
 
   const data = query.data
@@ -57,6 +64,18 @@ export function TransactionsPage() {
   return (
     <>
       <h1 className="text-xl font-semibold">Transações</h1>
+      {account && (
+        <section
+          aria-label="Filtro de conta"
+          className="flex flex-wrap items-center gap-2 rounded border bg-white p-2 text-sm dark:bg-slate-800"
+        >
+          <span>Conta: {data?.filteredAccountName ?? account.accountId}</span>
+          <OwnerAvatar owner={account.owner} showName />
+          <Link to="/transactions" className="text-blue-700 dark:text-blue-400">
+            Ver todas
+          </Link>
+        </section>
+      )}
 
       <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => event.preventDefault()}>
         <label className="text-sm">

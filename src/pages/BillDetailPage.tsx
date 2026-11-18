@@ -82,7 +82,11 @@ function Payments({ bill }: { bill: BillDetail }) {
   )
 }
 
-function PurchaseRow({ transaction }: { transaction: BillTransaction }) {
+// Compra em outra moeda: o valor convertido na moeda da fatura é o principal e o original vai embaixo,
+// como na linha de compra da visão geral. Sem valor convertido, fica só o original.
+function PurchaseRow({ transaction, billCurrency }: { transaction: BillTransaction; billCurrency: string }) {
+  const converted = transaction.amountInAccountCurrency
+  const original = formatMoney(Math.abs(transaction.amount), transaction.currencyCode)
   return (
     <TransactionRow
       income={transaction.type === 'CREDIT'}
@@ -97,12 +101,13 @@ function PurchaseRow({ transaction }: { transaction: BillTransaction }) {
         </>
       }
       detail={transaction.category ? `${formatDate(transaction.date)} · ${transaction.category}` : formatDate(transaction.date)}
-      amount={formatMoney(Math.abs(transaction.amount), transaction.currencyCode)}
+      amount={converted === undefined ? original : formatMoney(Math.abs(converted), billCurrency)}
+      amountNote={converted !== undefined && transaction.currencyCode !== billCurrency ? original : undefined}
     />
   )
 }
 
-function Purchases({ transactions }: { transactions: BillTransaction[] }) {
+function Purchases({ transactions, billCurrency }: { transactions: BillTransaction[]; billCurrency: string }) {
   return (
     <section aria-label="Compras">
       <h2 className={SECTION_TITLE}>Compras</h2>
@@ -111,7 +116,7 @@ function Purchases({ transactions }: { transactions: BillTransaction[] }) {
       ) : (
         <ul className="divide-y rounded bg-white text-sm dark:bg-slate-800">
           {transactions.map((transaction) => (
-            <PurchaseRow key={transaction.id} transaction={transaction} />
+            <PurchaseRow key={transaction.id} transaction={transaction} billCurrency={billCurrency} />
           ))}
         </ul>
       )}
@@ -153,7 +158,7 @@ export function BillDetailPage() {
           <Summary bill={query.data.bill} />
           <Charges bill={query.data.bill} />
           <Payments bill={query.data.bill} />
-          <Purchases transactions={query.data.transactions} />
+          <Purchases transactions={query.data.transactions} billCurrency={query.data.bill.currencyCode} />
         </div>
       )}
     </>

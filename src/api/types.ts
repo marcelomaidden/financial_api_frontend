@@ -177,6 +177,8 @@ export interface BillTransaction {
   type: string
   status: string
   installment?: Installment
+  /** Valor na moeda do cartão. A API só o envia em compra fora de BRL que a Pluggy converteu. */
+  amountInAccountCurrency?: number
 }
 
 export interface BillDetailResponse {

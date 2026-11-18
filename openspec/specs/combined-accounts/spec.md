@@ -81,8 +81,12 @@ O sistema SHALL listar as compras da fatura na ordem recebida da API (da mais re
 - **THEN** a linha aparece como entrada, e as demais aparecem como saída
 
 #### Scenario: Valores em outra moeda
-- **WHEN** uma compra tem `currencyCode` diferente de BRL
-- **THEN** o valor é formatado na moeda da compra
+- **WHEN** uma compra tem `currencyCode` USD, valor 58,00 e `amountInAccountCurrency` 298,19, numa fatura em BRL
+- **THEN** a linha mostra R$ 298,19, na moeda da fatura, como valor principal e US$ 58,00 em destaque menor abaixo dele
+
+#### Scenario: Outra moeda sem valor convertido
+- **WHEN** uma compra tem `currencyCode` diferente da moeda da fatura e não traz `amountInAccountCurrency`
+- **THEN** a linha mostra só o valor na moeda da compra
 
 ### Requirement: Estados da página de detalhe
 O sistema SHALL mostrar um indicador de carregamento enquanto consulta o detalhe, e SHALL mostrar a mensagem da API com a opção de tentar de novo quando a consulta falhar. O sistema SHALL NOT mostrar resumo ou compras parciais quando a consulta falhar. A página SHALL mostrar mensagens de lista vazia para compras, encargos e pagamentos sem itens. A página SHALL ter um link de volta para Contas em qualquer um desses estados.

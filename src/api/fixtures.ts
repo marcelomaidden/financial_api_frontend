@@ -1,4 +1,4 @@
-import type { OwnerAccounts, OwnerCreditCards, OwnerLoans, SummaryResponse } from './types'
+import type { BillDetailResponse, OwnerAccounts, OwnerCreditCards, OwnerLoans, SummaryResponse } from './types'
 
 // Exemplos baseados no README da financial_api.
 export const summaryFixture: SummaryResponse = {
@@ -157,6 +157,57 @@ export const loansFixture: { owners: OwnerLoans[] } = {
       owner: 'luana',
       loans: [],
       error: { status: 502, error: 'Bad Gateway', message: 'Erro ao consultar a Pluggy' },
+    },
+  ],
+}
+
+// Exemplo do contrato de GET /bill/{id}.
+export const billDetailFixture: BillDetailResponse = {
+  owner: 'marcelo',
+  accountId: 'c1',
+  bill: {
+    id: 'b1',
+    dueDate: '2026-11-20',
+    closingDate: '2026-11-10',
+    totalAmount: 1520.75,
+    currencyCode: 'BRL',
+    minimumPaymentAmount: 228.11,
+    allowsInstallments: true,
+    financeCharges: [
+      { id: 'fc1', type: 'IOF', amount: 12.5, currencyCode: 'BRL', additionalInfo: 'IOF internacional' },
+    ],
+    payments: [
+      {
+        id: 'p1',
+        valueType: 'PARTIAL',
+        paymentDate: '2026-11-18',
+        paymentMode: 'PIX',
+        amount: 300,
+        currencyCode: 'BRL',
+      },
+    ],
+  },
+  transactions: [
+    {
+      id: 't1',
+      date: '2026-11-10',
+      description: 'Loja de Roupas',
+      amount: 150,
+      currencyCode: 'BRL',
+      category: 'Compras',
+      type: 'DEBIT',
+      status: 'POSTED',
+      installment: { number: 3, total: 10 },
+    },
+    {
+      id: 't2',
+      date: '2026-11-08',
+      description: 'Estorno Mercado',
+      amount: -20,
+      currencyCode: 'BRL',
+      category: null,
+      type: 'CREDIT',
+      status: 'POSTED',
     },
   ],
 }

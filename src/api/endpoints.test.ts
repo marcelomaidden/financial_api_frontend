@@ -3,13 +3,14 @@ import { server } from '../test/server'
 import { ApiRequestError } from './client'
 import {
   fetchAccounts,
+  fetchBillDetail,
   fetchBills,
   fetchCreditCards,
   fetchLoans,
   fetchSummary,
   fetchTransactions,
 } from './endpoints'
-import { accountsFixture, creditCardsFixture, loansFixture, summaryFixture } from './fixtures'
+import { accountsFixture, billDetailFixture, creditCardsFixture, loansFixture, summaryFixture } from './fixtures'
 
 const origin = window.location.origin
 
@@ -140,5 +141,49 @@ describe('parâmetros das consultas', () => {
     await fetchBills('m', 'c1', 2, 12)
     expect(url.searchParams.get('page')).toBe('2')
     expect(url.searchParams.get('pageSize')).toBe('12')
+  })
+})
+
+describe('detalhe da fatura', () => {
+  it('chama /bill/{id} com owner e accountId na query e lê o exemplo do contrato', async () => {
+    let url!: URL
+    server.use(
+      http.get(`${origin}/api/bill/:id`, ({ request }) => {
+        url = new URL(request.url)
+        return HttpResponse.json(billDetailFixture)
+      }),
+    )
+    const detail = await fetchBillDetail('marcelo', 'c1', 'b1')
+    expect(url.pathname).toBe('/api/bill/b1')
+    expect(url.searchParams.get('owner')).toBe('marcelo')
+    expect(url.searchParams.get('accountId')).toBe('c1')
+    expect(detail.bill.financeCharges[0].additionalInfo).toBe('IOF internacional')
+    expect(detail.transactions[0].installment).toEqual({ number: 3, total: 10 })
+    expect(detail.transactions[1].installment).toBeUndefined()
+    expect(detail.transactions[1].category).toBeNull()
+  })
+
+  it('codifica um id com caractere especial no caminho, uma vez só', async () => {
+    let url!: URL
+    server.use(
+      http.get(`${origin}/api/bill/:id`, ({ request }) => {
+        url = new URL(request.url)
+        return HttpResponse.json(billDetailFixture)
+      }),
+    )
+    await fetchBillDetail('marcelo', 'c 1', 'b/1 x')
+    expect(url.pathname).toBe('/api/bill/b%2F1%20x')
+    expect(url.searchParams.get('accountId')).toBe('c 1')
+  })
+
+  it('converte o 404 em ApiRequestError com a message da API', async () => {
+    server.use(
+      http.get(`${origin}/api/bill/:id`, () =>
+        HttpResponse.json({ status: 404, error: 'Not Found', message: 'Fatura não encontrada' }, { status: 404 }),
+      ),
+    )
+    const error = await fetchBillDetail('marcelo', 'c1', 'x').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiRequestError)
+    expect((error as ApiRequestError).message).toBe('Fatura não encontrada')
   })
 })

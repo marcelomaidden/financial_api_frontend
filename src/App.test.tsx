@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import App from './App'
-import { accountsFixture, creditCardsFixture, loansFixture, summaryFixture } from './api/fixtures'
+import { accountsFixture, billDetailFixture, creditCardsFixture, loansFixture, summaryFixture } from './api/fixtures'
 import { renderWithProviders } from './test/render'
 import { server } from './test/server'
 
@@ -38,5 +38,13 @@ describe('navegação', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Empréstimos' }))
     expect(screen.getByRole('heading', { name: 'Empréstimos' })).toBeInTheDocument()
     expect(await screen.findByText('Crédito Pessoal Consignado')).toBeInTheDocument()
+  })
+
+  it('abre o detalhe da fatura dentro do layout', async () => {
+    server.use(http.get(`${window.location.origin}/api/bill/:id`, () => HttpResponse.json(billDetailFixture)))
+    renderWithProviders(<App />, '/bills/b1?owner=marcelo&accountId=c1')
+    expect(screen.getByRole('heading', { name: /Fatura/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Contas' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Resumo da fatura' })).toBeInTheDocument()
   })
 })

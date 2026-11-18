@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { fetchAccounts, fetchBills, fetchCreditCards } from '../api/endpoints'
 import type { CreditCard } from '../api/types'
 import { ErrorMessage } from '../components/ErrorMessage'
@@ -28,8 +29,17 @@ function BillsPanel({ owner, accountId }: { owner: string; accountId: string }) 
       ) : (
         <ul className="divide-y">
           {bills.map((bill) => (
-            <li key={bill.id} className="flex justify-between py-1">
+            <li key={bill.id} className="flex justify-between gap-2 py-1">
               <span>Vencimento {formatDate(bill.dueDate)}</span>
+              <Link
+                to={`/bills/${encodeURIComponent(bill.id)}?${new URLSearchParams({ owner, accountId })}`}
+                className="text-blue-700 dark:text-blue-400"
+              >
+                Ver detalhe{' '}
+                <span className="sr-only">
+                  {bill.dueDate ? `da fatura com vencimento ${formatDate(bill.dueDate)}` : 'da fatura sem vencimento'}
+                </span>
+              </Link>
               <span>{formatMoney(bill.totalAmount, bill.currencyCode)}</span>
             </li>
           ))}

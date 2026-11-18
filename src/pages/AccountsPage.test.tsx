@@ -106,4 +106,57 @@ describe('AccountsPage', () => {
     expect(await screen.findByText('Pluggy fora')).toBeInTheDocument()
     expect(await screen.findByText('Cartão Nubank')).toBeInTheDocument()
   })
+
+  describe('link para o detalhe da fatura', () => {
+    function mockBills(bills: { id: string; dueDate: string | null }[]) {
+      mockLists()
+      server.use(
+        http.get(`${origin}/api/owners/:owner/accounts/:accountId/bills`, () =>
+          HttpResponse.json({
+            owner: 'marcelo',
+            accountId: 'c1',
+            bills: bills.map((bill) => ({ ...bill, closingDate: null, totalAmount: 10, currencyCode: 'BRL', minimumPaymentAmount: null })),
+            page: 1,
+            totalPages: 1,
+          }),
+        ),
+      )
+    }
+
+    it('cada fatura tem um link com o vencimento no nome e o endereço com dono e conta', async () => {
+      mockBills([
+        { id: 'b1', dueDate: '2026-11-20T00:00:00' },
+        { id: 'b2', dueDate: '2026-12-20T00:00:00' },
+      ])
+      renderWithProviders(<AccountsPage />)
+
+      await userEvent.click(await screen.findByRole('button', { name: /Ver faturas/ }))
+      const first = await screen.findByRole('link', { name: 'Ver detalhe da fatura com vencimento 20/11/2026' })
+      expect(first).toHaveAttribute('href', '/bills/b1?owner=marcelo&accountId=c1')
+      expect(screen.getByRole('link', { name: 'Ver detalhe da fatura com vencimento 20/12/2026' })).toHaveAttribute(
+        'href',
+        '/bills/b2?owner=marcelo&accountId=c1',
+      )
+      expect(screen.getByText(/Vencimento 20\/11\/2026/).closest('li')).toContainElement(first)
+    })
+
+    it('codifica um id com caractere especial no endereço', async () => {
+      mockBills([{ id: 'b/1 x', dueDate: '2026-11-20T00:00:00' }])
+      renderWithProviders(<AccountsPage />)
+
+      await userEvent.click(await screen.findByRole('button', { name: /Ver faturas/ }))
+      expect(await screen.findByRole('link', { name: /Ver detalhe/ })).toHaveAttribute(
+        'href',
+        '/bills/b%2F1%20x?owner=marcelo&accountId=c1',
+      )
+    })
+
+    it('fatura sem vencimento tem o link "da fatura sem vencimento"', async () => {
+      mockBills([{ id: 'b1', dueDate: null }])
+      renderWithProviders(<AccountsPage />)
+
+      await userEvent.click(await screen.findByRole('button', { name: /Ver faturas/ }))
+      expect(await screen.findByRole('link', { name: 'Ver detalhe da fatura sem vencimento' })).toBeInTheDocument()
+    })
+  })
 })

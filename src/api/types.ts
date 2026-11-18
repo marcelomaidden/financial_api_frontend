@@ -136,6 +136,56 @@ export interface BillsResponse {
   totalPages: number | null
 }
 
+export interface BillFinanceCharge {
+  id: string
+  type: string
+  amount: number
+  currencyCode: string
+  additionalInfo: string | null
+}
+
+export interface BillPayment {
+  id: string
+  valueType: string
+  paymentDate: string | null
+  paymentMode: string | null
+  amount: number
+  currencyCode: string
+}
+
+// Datas do detalhe chegam em yyyy-mm-dd. `type`, `valueType` e `paymentMode` são string
+// para que um valor novo da API não quebre a tela.
+export interface BillDetail {
+  id: string
+  dueDate: string
+  closingDate: string | null
+  totalAmount: number
+  currencyCode: string
+  minimumPaymentAmount: number | null
+  allowsInstallments: boolean | null
+  financeCharges: BillFinanceCharge[]
+  payments: BillPayment[]
+}
+
+export interface BillTransaction {
+  id: string
+  date: string
+  description: string
+  amount: number
+  currencyCode: string
+  category: string | null
+  type: string
+  status: string
+  installment?: Installment
+}
+
+export interface BillDetailResponse {
+  owner: string
+  accountId: string
+  bill: BillDetail
+  transactions: BillTransaction[]
+}
+
 export interface IncomeAccount {
   id: string
   name: string

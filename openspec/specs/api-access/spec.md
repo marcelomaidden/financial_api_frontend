@@ -14,7 +14,7 @@ A SPA SHALL enviar o cabeçalho `X-API-Key` em toda requisição à API, com o v
 - **THEN** a requisição leva `X-API-Key` com esse valor
 
 #### Scenario: Todas as rotas
-- **WHEN** a SPA chama o resumo, as contas, os cartões, as faturas, as transações e os empréstimos
+- **WHEN** a SPA chama o resumo, as contas, os cartões, as faturas, o detalhe da fatura, as transações e os empréstimos
 - **THEN** todas as requisições levam `X-API-Key`
 
 ### Requirement: Chave não configurada

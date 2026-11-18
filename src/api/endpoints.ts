@@ -1,5 +1,6 @@
 import { getJson } from './client'
 import type {
+  BillDetailResponse,
   BillsResponse,
   OwnerAccounts,
   OwnerCreditCards,
@@ -36,6 +37,11 @@ export function fetchBills(owner: string, accountId: string, page?: number, page
     { page, pageSize },
     signal,
   )
+}
+
+/** Detalhe de uma fatura (`id` é o `bills[].id` da listagem). `owner` e `accountId` são obrigatórios na API. */
+export function fetchBillDetail(owner: string, accountId: string, id: string, signal?: AbortSignal) {
+  return getJson<BillDetailResponse>(`/bill/${encodeURIComponent(id)}`, { owner, accountId }, signal)
 }
 
 export interface TransactionsFilter extends DateRange {

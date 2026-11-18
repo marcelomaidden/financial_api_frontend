@@ -209,5 +209,16 @@ export const billDetailFixture: BillDetailResponse = {
       type: 'CREDIT',
       status: 'POSTED',
     },
+    {
+      id: 't3',
+      date: '2026-11-05',
+      description: 'Netflix',
+      amount: -58,
+      currencyCode: 'USD',
+      category: 'Video streaming',
+      type: 'DEBIT',
+      status: 'POSTED',
+      amountInAccountCurrency: -298.19,
+    },
   ],
 }

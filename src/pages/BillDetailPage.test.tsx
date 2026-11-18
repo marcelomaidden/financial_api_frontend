@@ -90,7 +90,7 @@ describe('BillDetailPage', () => {
 
     const purchases = await screen.findByRole('region', { name: 'Compras' })
     const rows = within(purchases).getAllByRole('listitem')
-    expect(rows).toHaveLength(2)
+    expect(rows).toHaveLength(3)
     expect(rows[0]).toHaveTextContent('Loja de Roupas')
     expect(rows[0]).toHaveTextContent('3/10')
     expect(rows[0]).toHaveTextContent('10/11/2026 · Compras')
@@ -100,6 +100,55 @@ describe('BillDetailPage', () => {
     expect(rows[1]).not.toHaveTextContent('/10')
     expect(within(rows[1]).getByRole('img', { name: 'Entrada' })).toBeInTheDocument()
     expect(rows[1]).toHaveTextContent(/20,00/)
+  })
+
+  it('mostra a compra em outra moeda pelo valor na moeda da fatura, com o original menor embaixo', async () => {
+    mockDetail()
+    renderPage()
+
+    const purchases = await screen.findByRole('region', { name: 'Compras' })
+    const row = within(purchases).getByText('Netflix').closest('li')!
+    const main = within(row).getByText(/298,19/)
+    expect(main).toHaveTextContent(/R\$\s?298,19/)
+    expect(main).toHaveClass('font-medium')
+    const note = within(row).getByText(/58,00/)
+    expect(note).toHaveTextContent(/US\$\s?58,00/)
+    expect(note).toHaveClass('text-xs')
+  })
+
+  it('mostra só o valor original da compra em outra moeda sem valor convertido', async () => {
+    mockDetail({
+      ...billDetailFixture,
+      transactions: [
+        {
+          id: 'u1',
+          date: '2026-11-05',
+          description: 'Loja online',
+          amount: -58,
+          currencyCode: 'USD',
+          category: null,
+          type: 'DEBIT',
+          status: 'POSTED',
+        },
+      ],
+    })
+    renderPage()
+
+    const purchases = await screen.findByRole('region', { name: 'Compras' })
+    const row = within(purchases).getByText('Loja online').closest('li')!
+    expect(row).toHaveTextContent(/US\$\s?58,00/)
+    expect(row).not.toHaveTextContent('R$')
+  })
+
+  it('mantém a compra em BRL e a parcela como antes, sem valor menor embaixo', async () => {
+    mockDetail()
+    renderPage()
+
+    const purchases = await screen.findByRole('region', { name: 'Compras' })
+    const row = within(purchases).getByText('Loja de Roupas').closest('li')!
+    expect(row).toHaveTextContent(/R\$\s?150,00/)
+    expect(row).toHaveTextContent('3/10')
+    expect(row.querySelectorAll('.text-xs.text-slate-500')).toHaveLength(2)
   })
 
   it('mostra as mensagens de lista vazia', async () => {

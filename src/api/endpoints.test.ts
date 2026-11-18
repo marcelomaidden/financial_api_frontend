@@ -161,6 +161,9 @@ describe('detalhe da fatura', () => {
     expect(detail.transactions[0].installment).toEqual({ number: 3, total: 10 })
     expect(detail.transactions[1].installment).toBeUndefined()
     expect(detail.transactions[1].category).toBeNull()
+    expect(detail.transactions[1].amountInAccountCurrency).toBeUndefined()
+    expect(detail.transactions[2].currencyCode).toBe('USD')
+    expect(detail.transactions[2].amountInAccountCurrency).toBe(-298.19)
   })
 
   it('codifica um id com caractere especial no caminho, uma vez só', async () => {

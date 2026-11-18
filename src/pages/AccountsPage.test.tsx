@@ -159,4 +159,49 @@ describe('AccountsPage', () => {
       expect(await screen.findByRole('link', { name: 'Ver detalhe da fatura sem vencimento' })).toBeInTheDocument()
     })
   })
+
+  describe('link para as transações de uma conta bancária', () => {
+    it('cada conta bancária tem o link com o nome da conta e o endereço com dono e conta', async () => {
+      mockLists()
+      renderWithProviders(<AccountsPage />)
+
+      const banks = await screen.findByRole('region', { name: 'Contas bancárias' })
+      const link = await within(banks).findByRole('link', { name: 'Ver transações de Nubank' })
+      expect(link).toHaveAttribute('href', '/transactions?owner=marcelo&accountId=a1')
+      expect(within(banks).getByText('Nubank').closest('li')).toContainElement(link)
+    })
+
+    it('codifica um id de conta com caractere especial', async () => {
+      server.use(
+        http.get(`${origin}/api/accounts`, () =>
+          HttpResponse.json({
+            owners: [
+              {
+                owner: 'marcelo',
+                accounts: [{ ...accountsFixture.owners[0].accounts[0], id: 'a/1 x' }],
+                error: null,
+              },
+            ],
+          }),
+        ),
+        http.get(`${origin}/api/credit-cards`, () => HttpResponse.json(creditCardsFixture)),
+      )
+      renderWithProviders(<AccountsPage />)
+
+      expect(await screen.findByRole('link', { name: 'Ver transações de Nubank' })).toHaveAttribute(
+        'href',
+        '/transactions?owner=marcelo&accountId=a%2F1+x',
+      )
+    })
+
+    it('cartões não têm o link de transações', async () => {
+      mockLists()
+      renderWithProviders(<AccountsPage />)
+
+      const cards = await screen.findByRole('region', { name: 'Cartões de crédito' })
+      await within(cards).findByText('Cartão Nubank')
+      expect(within(cards).queryByRole('link', { name: /Ver transações/ })).not.toBeInTheDocument()
+      expect(within(cards).getByRole('button', { name: /Ver faturas/ })).toBeInTheDocument()
+    })
+  })
 })

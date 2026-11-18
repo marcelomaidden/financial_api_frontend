@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { Route, Routes } from 'react-router-dom'
 import type { OwnedTransaction, TransactionError } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server } from '../test/server'
@@ -200,5 +201,110 @@ describe('TransactionsPage', () => {
     mockTransactions([])
     renderWithProviders(<TransactionsPage />)
     expect(await screen.findByText('Nenhuma transação no período.')).toBeInTheDocument()
+  })
+
+  describe('filtro por conta no endereço', () => {
+    function renderAt(route: string) {
+      return renderWithProviders(
+        <Routes>
+          <Route path="/transactions" element={<TransactionsPage />} />
+        </Routes>,
+        route,
+      )
+    }
+
+    it('consulta só a conta e mostra o aviso com o nome e o dono', async () => {
+      const seen: URL[] = []
+      mockTransactions([tx('1', 'PIX recebido', '2026-11-02T10:00:00Z')], [], seen)
+      renderAt('/transactions?owner=marcelo&accountId=a1')
+
+      await screen.findByText('PIX recebido')
+      expect(seen[0].searchParams.get('owner')).toBe('marcelo')
+      expect(seen[0].searchParams.get('accountId')).toBe('a1')
+      const filter = screen.getByLabelText('Filtro de conta')
+      expect(filter).toHaveTextContent('Conta: Nubank')
+      expect(within(filter).getByText('marcelo')).toBeInTheDocument()
+      expect(within(filter).getByRole('link', { name: 'Ver todas' })).toHaveAttribute('href', '/transactions')
+    })
+
+    it('mantém a conta ao mudar o período', async () => {
+      const seen: URL[] = []
+      mockTransactions([tx('1', 'Compra', '2026-10-10T10:00:00Z')], [], seen)
+      renderAt('/transactions?owner=marcelo&accountId=a1')
+      await screen.findByText('Compra')
+
+      const from = screen.getByLabelText('De')
+      await userEvent.clear(from)
+      await userEvent.type(from, '2026-10-01')
+      await screen.findByText('Compra')
+      const last = seen.at(-1)!
+      expect(last.searchParams.get('dateFrom')).toBe('2026-10-01')
+      expect(last.searchParams.get('owner')).toBe('marcelo')
+      expect(last.searchParams.get('accountId')).toBe('a1')
+    })
+
+    it('"Ver todas" busca sem filtro, com as mesmas datas, e tira o aviso', async () => {
+      const seen: URL[] = []
+      mockTransactions([tx('1', 'Compra', '2026-10-10T10:00:00Z')], [], seen)
+      renderAt('/transactions?owner=marcelo&accountId=a1')
+      await screen.findByText('Compra')
+
+      const from = screen.getByLabelText('De')
+      await userEvent.clear(from)
+      await userEvent.type(from, '2026-10-01')
+      await screen.findByText('Compra')
+      const before = seen.length
+
+      await userEvent.click(screen.getByRole('link', { name: 'Ver todas' }))
+      await screen.findByText('Compra')
+      expect(seen.length).toBeGreaterThan(before)
+      const last = seen.at(-1)!
+      expect(last.searchParams.has('owner')).toBe(false)
+      expect(last.searchParams.has('accountId')).toBe(false)
+      expect(last.searchParams.get('dateFrom')).toBe('2026-10-01')
+      expect(screen.queryByLabelText('Filtro de conta')).not.toBeInTheDocument()
+    })
+
+    it.each([
+      ['só accountId', '/transactions?accountId=a1'],
+      ['só owner', '/transactions?owner=marcelo'],
+    ])('com %s busca todas as contas e não mostra o aviso', async (_name, route) => {
+      const seen: URL[] = []
+      mockTransactions([tx('1', 'Compra', '2026-11-02T10:00:00Z')], [], seen)
+      renderAt(route)
+
+      await screen.findByText('Compra')
+      expect(seen[0].searchParams.has('owner')).toBe(false)
+      expect(seen[0].searchParams.has('accountId')).toBe(false)
+      expect(screen.queryByLabelText('Filtro de conta')).not.toBeInTheDocument()
+    })
+
+    it('mostra o id da conta no aviso quando a listagem de contas falha', async () => {
+      server.use(
+        http.get(`${origin}/api/accounts`, () =>
+          HttpResponse.json({ status: 502, error: 'x', message: 'x' }, { status: 502 }),
+        ),
+      )
+      mockTransactions([tx('1', 'Compra', '2026-11-02T10:00:00Z')])
+      renderAt('/transactions?owner=marcelo&accountId=a1')
+
+      await screen.findByText('Compra')
+      expect(screen.getByLabelText('Filtro de conta')).toHaveTextContent('Conta: a1')
+    })
+
+    it('com erro da conta filtrada mostra a mensagem, a nova tentativa e o aviso com "Ver todas"', async () => {
+      server.use(
+        http.get(`${origin}/api/transactions`, () =>
+          HttpResponse.json({ status: 404, error: 'Not Found', message: 'Conta não encontrada' }, { status: 404 }),
+        ),
+      )
+      renderAt('/transactions?owner=marcelo&accountId=zz')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Conta não encontrada')
+      expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+      const filter = screen.getByLabelText('Filtro de conta')
+      expect(filter).toHaveTextContent('Conta: zz')
+      expect(within(filter).getByRole('link', { name: 'Ver todas' })).toBeInTheDocument()
+    })
   })
 })

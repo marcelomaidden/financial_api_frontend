@@ -47,4 +47,20 @@ describe('navegação', () => {
     expect(screen.getByRole('link', { name: 'Contas' })).toBeInTheDocument()
     expect(await screen.findByRole('region', { name: 'Resumo da fatura' })).toBeInTheDocument()
   })
+
+  it('abre as transações de uma conta bancária a partir da aba Contas', async () => {
+    const seen: URL[] = []
+    server.use(
+      http.get(`${window.location.origin}/api/transactions`, ({ request }) => {
+        seen.push(new URL(request.url))
+        return HttpResponse.json({ transactions: [], partial: false, errors: [] })
+      }),
+    )
+    renderWithProviders(<App />, '/accounts')
+
+    await userEvent.click(await screen.findByRole('link', { name: 'Ver transações de Nubank' }))
+    expect(await screen.findByRole('heading', { name: 'Transações' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Filtro de conta' })).toHaveTextContent('Conta: Nubank')
+    expect(seen.at(-1)!.searchParams.get('accountId')).toBe('a1')
+  })
 })

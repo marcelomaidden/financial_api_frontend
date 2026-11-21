@@ -230,6 +230,16 @@ export interface ExpenseTransaction {
   installment?: Installment
 }
 
+/** Saída das contas bancárias no período. O `amount` vem sempre positivo. */
+export interface AccountDebit {
+  id: string
+  description: string
+  amount: number
+  currencyCode: string
+  date: string
+  accountId: string
+}
+
 export interface SummarySection<T> {
   total: Money
   detail: Record<string, T[]>
@@ -249,6 +259,7 @@ export interface SummaryResponse {
   expenses: {
     owed: SummarySection<OwedBill>
     transactions: SummarySection<ExpenseTransaction>
+    accountDebits: SummarySection<AccountDebit>
   }
   partial: boolean
   errors: SummaryError[]

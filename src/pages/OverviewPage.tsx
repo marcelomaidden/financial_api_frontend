@@ -18,6 +18,7 @@ import { PartialWarning } from '../components/PartialWarning'
 import { TransactionRow } from '../components/TransactionRow'
 import { formatDate, formatMoney } from '../lib/format'
 import { groupByAccount, toCents } from '../lib/groupByAccount'
+import { periodResult, type PeriodResult } from '../lib/periodResult'
 import { accountsByBalance, flattenDetail, owedBillsByDueDate } from '../lib/orderRows'
 import { groupPurchases } from '../lib/purchases'
 
@@ -184,6 +185,63 @@ function PurchasesByCard({
   )
 }
 
+const MUTED = 'text-slate-500 dark:text-slate-400'
+
+/** Valor com sinal: positivo na cor de entrada, negativo na cor de saída com "−", zero neutro. */
+function SignedAmount({ value }: { value: number }) {
+  const color = value > 0 ? 'text-green-600 dark:text-green-400' : value < 0 ? 'text-red-600 dark:text-red-400' : ''
+  return (
+    <span className={color}>
+      {value < 0 ? '− ' : ''}
+      {formatMoney(Math.abs(value), 'BRL')}
+    </span>
+  )
+}
+
+/** Entradas menos saídas do período, com o resultado de cada conta no detalhe. */
+function PeriodResultCard({
+  result,
+  nameOf,
+}: {
+  result: PeriodResult
+  nameOf: (owner: string, accountId: string) => string
+}) {
+  const count = result.accounts.length
+  return (
+    <section aria-labelledby="overview-result" className="rounded border bg-white dark:bg-slate-800 p-4">
+      <h2 id="overview-result" className={`text-sm ${MUTED}`}>
+        Resultado do período
+      </h2>
+      <p data-testid="total" className="text-2xl font-semibold">
+        <SignedAmount value={result.total} />
+      </p>
+      <details className="mt-2">
+        <summary className="cursor-pointer text-sm text-blue-700 dark:text-blue-400">Ver detalhe ({count})</summary>
+        {count === 0 ? (
+          <p className={`mt-2 text-sm ${MUTED}`}>Nenhum item.</p>
+        ) : (
+          <ul className="mt-2 divide-y text-sm">
+            {result.accounts.map((account) => (
+              <li key={account.key} data-testid="result-account" className="flex items-center gap-3 p-2">
+                <OwnerAvatar owner={account.owner} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{nameOf(account.owner, account.accountId)}</span>
+                  <span className={`block text-xs ${MUTED}`}>
+                    entrou {formatMoney(account.incoming, 'BRL')} · saiu {formatMoney(account.outgoing, 'BRL')}
+                  </span>
+                </span>
+                <span data-testid="result-amount" className="font-medium">
+                  <SignedAmount value={account.result} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
+    </section>
+  )
+}
+
 /** Grupo de cards com título (Entradas ou Despesas). */
 function CardGroup({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
@@ -261,6 +319,10 @@ export function OverviewPage() {
               messages={summary.errors.map((error) => `Dados de ${error.owner} incompletos: ${error.message}`)}
             />
           )}
+          <PeriodResultCard
+            result={periodResult(summary.incomes.transactions.detail, summary.expenses.accountDebits.detail)}
+            nameOf={nameOf}
+          />
           <CardGroup id="overview-incomes" title="Entradas">
             <SummaryCard<IncomeAccount>
               title="Saldo disponível"
@@ -276,7 +338,7 @@ export function OverviewPage() {
           <CardGroup id="overview-expenses" title="Despesas">
             <SummaryCard<AccountDebit>
               title="Saídas no período"
-              note="Inclui pagamentos de fatura e transferências entre contas próprias."
+              note="Inclui pagamentos de fatura e transferências entre contas próprias. As transferências se anulam no resultado do período."
               section={summary.expenses.accountDebits}
               renderDetail={(section) => <TransactionsByAccount section={section} income={false} nameOf={nameOf} />}
             />

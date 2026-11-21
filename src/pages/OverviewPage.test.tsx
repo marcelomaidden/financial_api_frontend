@@ -772,6 +772,7 @@ describe('OverviewPage: saídas do período por conta', () => {
     await screen.findByRole('region', { name: 'Saídas no período' })
 
     expect(outflowsCard().getByText(/pagamentos de fatura e transferências entre contas próprias/i)).toBeInTheDocument()
+    expect(outflowsCard().getByText(/as transferências se anulam no resultado do período/i)).toBeInTheDocument()
   })
 
   it('refaz a consulta e mostra as saídas do novo período ao mudar De e Até', async () => {
@@ -828,5 +829,140 @@ describe('OverviewPage: grupos Entradas e Despesas', () => {
       'Faturas a pagar',
       'Compras do cartão sem fatura',
     ])
+  })
+})
+
+describe('OverviewPage: resultado do período', () => {
+  function inc(id: string, accountId: string, amount: number): IncomeTransaction {
+    return { id, description: `Entrada ${id}`, amount, currencyCode: 'BRL', date: '2026-11-10T12:00:00Z', accountId }
+  }
+  function out(id: string, accountId: string, amount: number): AccountDebit {
+    return { id, description: `Saída ${id}`, amount, currencyCode: 'BRL', date: '2026-11-10T12:00:00Z', accountId }
+  }
+  function money(value: number) {
+    return { value, currencyCode: 'BRL' }
+  }
+  function summaryWithFlows(
+    incomes: Record<string, IncomeTransaction[]>,
+    incomesTotal: number,
+    debits: Record<string, AccountDebit[]>,
+    debitsTotal: number,
+  ) {
+    return {
+      ...summaryFixture,
+      partial: false,
+      errors: [],
+      incomes: { ...summaryFixture.incomes, transactions: { total: money(incomesTotal), detail: incomes } },
+      expenses: { ...summaryFixture.expenses, accountDebits: { total: money(debitsTotal), detail: debits } },
+    }
+  }
+
+  const resultCard = () => within(card('Resultado do período'))
+  const totalOf = () => resultCard().getByTestId('total').querySelector('span')!
+
+  it('aparece no topo, antes dos grupos e fora deles, com título h2', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+
+    const result = card('Resultado do período')
+    const incomes = screen.getByRole('region', { name: 'Entradas' })
+    const expenses = screen.getByRole('region', { name: 'Despesas' })
+    expect(result.compareDocumentPosition(incomes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(incomes.contains(result)).toBe(false)
+    expect(expenses.contains(result)).toBe(false)
+    expect(screen.getByRole('heading', { level: 2, name: 'Resultado do período' })).toBeInTheDocument()
+  })
+
+  it('mostra entradas menos saídas do resumo de exemplo na cor de saída, com "−"', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+
+    expect(totalOf()).toHaveTextContent(/− .*22,51/)
+    expect(totalOf()).toHaveClass('text-red-600')
+  })
+
+  it('mostra o resultado positivo na cor de entrada, sem "−"', async () => {
+    const summary = summaryWithFlows({ marcelo: [inc('a', 'a1', 10000)] }, 10000, { marcelo: [out('b', 'a1', 8500)] }, 8500)
+    server.use(http.get(url, () => HttpResponse.json(summary)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+
+    expect(totalOf()).toHaveTextContent(/1\.500,00/)
+    expect(totalOf()).not.toHaveTextContent('−')
+    expect(totalOf()).toHaveClass('text-green-600')
+  })
+
+  it('mostra zero em cor neutra e "Nenhum item." sem movimento', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryWithFlows({}, 0, {}, 0))))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+
+    expect(totalOf()).toHaveTextContent(/0,00/)
+    expect(totalOf()).not.toHaveTextContent('−')
+    expect(totalOf().className).toBe('')
+    expect(resultCard().getByText('Nenhum item.')).toBeInTheDocument()
+    expect(resultCard().queryByTestId('result-account')).not.toBeInTheDocument()
+  })
+
+  it('anula a transferência entre contas dos donos no detalhe por conta', async () => {
+    const summary = summaryWithFlows({ luana: [inc('t-in', 'a1', 1000)] }, 1000, { marcelo: [out('t-out', 'a1', 1000)] }, 1000)
+    server.use(http.get(url, () => HttpResponse.json(summary)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+
+    expect(totalOf()).toHaveTextContent(/0,00/)
+    const rows = await waitFor(() => {
+      const found = resultCard().getAllByTestId('result-account')
+      expect(found[0]).toHaveTextContent('Conta da Luana')
+      return found
+    })
+    expect(rows).toHaveLength(2)
+    expect(within(rows[0]).getByRole('img', { name: 'luana' })).toBeInTheDocument()
+    expect(within(rows[0]).getByTestId('result-amount')).toHaveTextContent(/^R\$\s1\.000,00$/)
+    expect(rows[1]).toHaveTextContent('Nubank')
+    expect(within(rows[1]).getByRole('img', { name: 'marcelo' })).toBeInTheDocument()
+    expect(within(rows[1]).getByTestId('result-amount')).toHaveTextContent(/− .*1\.000,00/)
+    expect(within(rows[1]).getByTestId('result-amount').querySelector('span')).toHaveClass('text-red-600')
+  })
+
+  it('mostra R$ 0,00 em "entrou" para conta só com saídas, e as contas pelo resultado', async () => {
+    const summary = summaryWithFlows(
+      { marcelo: [inc('a', 'a1', 700), inc('c', 'a2', 800)] },
+      1500,
+      { luana: [out('b', 'a1', 200)] },
+      200,
+    )
+    server.use(http.get(url, () => HttpResponse.json(summary)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+
+    const rows = resultCard().getAllByTestId('result-account')
+    expect(rows.map((row) => within(row).getByTestId('result-amount').textContent)).toEqual([
+      expect.stringMatching(/800,00/),
+      expect.stringMatching(/700,00/),
+      expect.stringMatching(/− .*200,00/),
+    ])
+    expect(rows[2]).toHaveTextContent(/entrou R\$\s0,00 · saiu R\$\s200,00/)
+    expect(resultCard().getByText('Ver detalhe (3)')).toBeInTheDocument()
+  })
+
+  it('recalcula o resultado ao mudar De e Até', async () => {
+    const october = summaryWithFlows({ marcelo: [inc('o', 'a1', 300)] }, 300, { marcelo: [out('p', 'a1', 100)] }, 100)
+    server.use(
+      http.get(url, ({ request }) =>
+        HttpResponse.json(new URL(request.url).searchParams.get('dateFrom') === '2026-10-01' ? october : summaryFixture),
+      ),
+    )
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Resultado do período' })
+    expect(totalOf()).toHaveTextContent(/22,51/)
+
+    await userEvent.type(screen.getByLabelText('De'), '2026-10-01')
+    await userEvent.type(screen.getByLabelText('Até'), '2026-10-31')
+
+    await waitFor(() => expect(totalOf()).toHaveTextContent(/200,00/))
+    expect(totalOf()).not.toHaveTextContent('−')
   })
 })

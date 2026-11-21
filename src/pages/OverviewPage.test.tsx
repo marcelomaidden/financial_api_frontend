@@ -1,8 +1,8 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { summaryFixture } from '../api/fixtures'
-import type { Account, ExpenseTransaction, IncomeAccount, IncomeTransaction, OwedBill, OwnerAccounts } from '../api/types'
+import type { Account, AccountDebit, ExpenseTransaction, IncomeAccount, IncomeTransaction, OwedBill, OwnerAccounts } from '../api/types'
 import { renderWithProviders } from '../test/render'
 import { server } from '../test/server'
 import { OverviewPage } from './OverviewPage'
@@ -689,5 +689,144 @@ describe('OverviewPage: saldo disponível como linhas por conta', () => {
 
     expect(balancesCard().getByText('Nenhum item.')).toBeInTheDocument()
     expect(balancesCard().queryByRole('listitem')).not.toBeInTheDocument()
+  })
+})
+
+describe('OverviewPage: saídas do período por conta', () => {
+  function debitTx(id: string, accountId: string, amount: number, extra: Partial<AccountDebit> = {}): AccountDebit {
+    return {
+      id,
+      description: `Saída ${id}`,
+      amount,
+      currencyCode: 'BRL',
+      date: '2026-11-10T12:00:00Z',
+      accountId,
+      ...extra,
+    }
+  }
+
+  function summaryWithDebits(detail: Record<string, AccountDebit[]>, total: number) {
+    return {
+      ...summaryFixture,
+      partial: false,
+      errors: [],
+      expenses: { ...summaryFixture.expenses, accountDebits: { total: { value: total, currencyCode: 'BRL' }, detail } },
+    }
+  }
+
+  const outflowsCard = () => within(card('Saídas no período'))
+
+  it('mostra o total e a saída do resumo de exemplo agrupada na conta, com nome, dono e subtotal', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saídas no período' })
+
+    expect(outflowsCard().getByTestId('total')).toHaveTextContent(/42,50/)
+    const group = await outflowsCard().findByRole('group', { name: 'Nubank' })
+    expect(within(group).getByRole('img', { name: 'marcelo' })).toBeInTheDocument()
+    expect(within(group).getByTestId('group-subtotal')).toHaveTextContent(/42,50/)
+    const row = within(group).getByText('Padaria Central').closest('li')!
+    expect(within(row).getByRole('img', { name: 'Saída' })).toBeInTheDocument()
+    expect(row.querySelector('span.text-red-600')).toHaveTextContent(/− .*42,50/)
+  })
+
+  it('agrupa por conta com subtotal, da maior para a menor, e o total geral', async () => {
+    const summary = summaryWithDebits(
+      {
+        marcelo: [debitTx('a', 'a1', 100), debitTx('b', 'a1', 50), debitTx('c', 'a2', 400)],
+        luana: [debitTx('d', 'a1', 70)],
+      },
+      620,
+    )
+    server.use(http.get(url, () => HttpResponse.json(summary)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saídas no período' })
+
+    expect(outflowsCard().getByTestId('total')).toHaveTextContent(/620,00/)
+    const names = outflowsCard()
+      .getAllByRole('group')
+      .map((group) => group.getAttribute('aria-label'))
+      .filter((name): name is string => name !== null)
+    expect(names).toEqual(['Inter', 'Nubank', 'Conta da Luana'])
+    const subtotals = outflowsCard()
+      .getAllByTestId('group-subtotal')
+      .map((node) => node.textContent)
+    expect(subtotals[0]).toMatch(/400,00/)
+    expect(subtotals[1]).toMatch(/150,00/)
+    expect(subtotals[2]).toMatch(/70,00/)
+  })
+
+  it('mostra "Nenhum item." e o total zerado quando não há saídas', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryWithDebits({}, 0))))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saídas no período' })
+
+    expect(outflowsCard().getByTestId('total')).toHaveTextContent(/0,00/)
+    expect(outflowsCard().getByText('Nenhum item.')).toBeInTheDocument()
+    expect(outflowsCard().queryByTestId('group-subtotal')).not.toBeInTheDocument()
+  })
+
+  it('avisa que pagamentos de fatura e transferências próprias estão incluídos', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saídas no período' })
+
+    expect(outflowsCard().getByText(/pagamentos de fatura e transferências entre contas próprias/i)).toBeInTheDocument()
+  })
+
+  it('refaz a consulta e mostra as saídas do novo período ao mudar De e Até', async () => {
+    const other = summaryWithDebits({ marcelo: [debitTx('z', 'a1', 9.9)] }, 9.9)
+    server.use(
+      http.get(url, ({ request }) =>
+        HttpResponse.json(new URL(request.url).searchParams.get('dateFrom') === '2026-10-01' ? other : summaryFixture),
+      ),
+    )
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saídas no período' })
+    expect(outflowsCard().getByTestId('total')).toHaveTextContent(/42,50/)
+
+    await userEvent.type(screen.getByLabelText('De'), '2026-10-01')
+    await userEvent.type(screen.getByLabelText('Até'), '2026-10-31')
+
+    await waitFor(() => expect(outflowsCard().getByTestId('total')).toHaveTextContent(/9,90/))
+  })
+})
+
+describe('OverviewPage: grupos Entradas e Despesas', () => {
+  it('mostra os títulos Entradas e Despesas, cada um com os cards do seu grupo', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saldo disponível' })
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Entradas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Despesas' })).toBeInTheDocument()
+
+    const incomes = within(screen.getByRole('region', { name: 'Entradas' }))
+    expect(incomes.getByRole('region', { name: 'Saldo disponível' })).toBeInTheDocument()
+    expect(incomes.getByRole('region', { name: 'Entradas no período' })).toBeInTheDocument()
+    expect(incomes.queryByRole('region', { name: 'Saídas no período' })).not.toBeInTheDocument()
+    expect(incomes.queryByRole('region', { name: 'Faturas a pagar' })).not.toBeInTheDocument()
+
+    const expenses = within(screen.getByRole('region', { name: 'Despesas' }))
+    expect(expenses.getByRole('region', { name: 'Saídas no período' })).toBeInTheDocument()
+    expect(expenses.getByRole('region', { name: 'Faturas a pagar' })).toBeInTheDocument()
+    expect(expenses.getByRole('region', { name: 'Compras do cartão sem fatura' })).toBeInTheDocument()
+    expect(expenses.queryByRole('region', { name: 'Saldo disponível' })).not.toBeInTheDocument()
+    expect(expenses.queryByRole('region', { name: 'Entradas no período' })).not.toBeInTheDocument()
+  })
+
+  it('mantém o título de cada card como h3, abaixo do título do grupo', async () => {
+    server.use(http.get(url, () => HttpResponse.json(summaryFixture)))
+    renderWithProviders(<OverviewPage />)
+    await screen.findByRole('region', { name: 'Saldo disponível' })
+
+    const titles = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
+    expect(titles).toEqual([
+      'Saldo disponível',
+      'Entradas no período',
+      'Saídas no período',
+      'Faturas a pagar',
+      'Compras do cartão sem fatura',
+    ])
   })
 })

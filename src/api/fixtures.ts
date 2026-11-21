@@ -75,6 +75,21 @@ export const summaryFixture: SummaryResponse = {
         ],
       },
     },
+    accountDebits: {
+      total: { value: 42.5, currencyCode: 'BRL' },
+      detail: {
+        marcelo: [
+          {
+            id: 'd1',
+            description: 'Padaria Central',
+            amount: 42.5,
+            currencyCode: 'BRL',
+            date: '2026-11-08T12:00:00Z',
+            accountId: 'a1',
+          },
+        ],
+      },
+    },
   },
   partial: true,
   errors: [{ owner: 'luana', status: 502, message: 'Erro ao consultar a Pluggy' }],

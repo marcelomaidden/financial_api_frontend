@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { fetchSummary } from '../api/endpoints'
 import { fetchAccountNames } from '../api/transactions'
 import type {
+  AccountDebit,
   ExpenseTransaction,
   IncomeAccount,
   IncomeTransaction,
@@ -32,7 +33,7 @@ function SummaryCard<T>({ title, note, section, renderDetail }: SummaryCardProps
   const count = flattenDetail(section.detail).length
   return (
     <section aria-label={title} className="rounded border bg-white dark:bg-slate-800 p-4">
-      <h2 className="text-sm text-slate-500 dark:text-slate-400">{title}</h2>
+      <h3 className="text-sm text-slate-500 dark:text-slate-400">{title}</h3>
       <p data-testid="total" className="text-2xl font-semibold">{formatMoney(section.total.value, section.total.currencyCode)}</p>
       {note && <p className="text-xs text-slate-500 dark:text-slate-400">{note}</p>}
       <details className="mt-2">
@@ -47,28 +48,33 @@ function SummaryCard<T>({ title, note, section, renderDetail }: SummaryCardProps
   )
 }
 
-function IncomeRow({ income }: { income: IncomeTransaction }) {
+/** Entrada ou saída de conta: as duas têm o mesmo formato e só mudam o sentido da linha. */
+type AccountTransaction = IncomeTransaction | AccountDebit
+
+function AccountTransactionRow({ transaction, income }: { transaction: AccountTransaction; income: boolean }) {
   return (
     <TransactionRow
-      income
-      description={income.description}
-      detail={formatDate(income.date)}
-      amount={formatMoney(income.amount, income.currencyCode)}
+      income={income}
+      description={transaction.description}
+      detail={formatDate(transaction.date)}
+      amount={formatMoney(transaction.amount, transaction.currencyCode)}
     />
   )
 }
 
-function IncomesByAccount({
+function TransactionsByAccount({
   section,
+  income,
   nameOf,
 }: {
-  section: SummarySection<IncomeTransaction>
+  section: SummarySection<AccountTransaction>
+  income: boolean
   nameOf: (owner: string, accountId: string) => string
 }) {
   const groups = groupByAccount(section.detail, {
-    accountId: (income) => income.accountId,
-    date: (income) => income.date,
-    cents: (income) => toCents(income.amount),
+    accountId: (transaction) => transaction.accountId,
+    date: (transaction) => transaction.date,
+    cents: (transaction) => toCents(transaction.amount),
   })
   return (
     <div className="mt-2 space-y-3 text-sm">
@@ -79,8 +85,8 @@ function IncomesByAccount({
           name={nameOf(group.owner, group.accountId)}
           subtotal={group.subtotal}
         >
-          {group.items.map((income) => (
-            <IncomeRow key={income.id} income={income} />
+          {group.items.map((transaction) => (
+            <AccountTransactionRow key={transaction.id} transaction={transaction} income={income} />
           ))}
         </AccountGroup>
       ))}
@@ -178,6 +184,18 @@ function PurchasesByCard({
   )
 }
 
+/** Grupo de cards com título (Entradas ou Despesas). */
+function CardGroup({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="space-y-3">
+      <h2 id={id} className="text-lg font-semibold">
+        {title}
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </section>
+  )
+}
+
 export function OverviewPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -243,7 +261,7 @@ export function OverviewPage() {
               messages={summary.errors.map((error) => `Dados de ${error.owner} incompletos: ${error.message}`)}
             />
           )}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <CardGroup id="overview-incomes" title="Entradas">
             <SummaryCard<IncomeAccount>
               title="Saldo disponível"
               section={summary.incomes.available}
@@ -252,7 +270,15 @@ export function OverviewPage() {
             <SummaryCard<IncomeTransaction>
               title="Entradas no período"
               section={summary.incomes.transactions}
-              renderDetail={(section) => <IncomesByAccount section={section} nameOf={nameOf} />}
+              renderDetail={(section) => <TransactionsByAccount section={section} income nameOf={nameOf} />}
+            />
+          </CardGroup>
+          <CardGroup id="overview-expenses" title="Despesas">
+            <SummaryCard<AccountDebit>
+              title="Saídas no período"
+              note="Inclui pagamentos de fatura e transferências entre contas próprias."
+              section={summary.expenses.accountDebits}
+              renderDetail={(section) => <TransactionsByAccount section={section} income={false} nameOf={nameOf} />}
             />
             <SummaryCard<OwedBill>
               title="Faturas a pagar"
@@ -265,7 +291,7 @@ export function OverviewPage() {
               section={summary.expenses.transactions}
               renderDetail={(section) => <PurchasesByCard section={section} nameOf={nameOf} />}
             />
-          </div>
+          </CardGroup>
         </>
       )}
     </>
